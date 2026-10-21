@@ -8,6 +8,11 @@ var execFile = require('child_process').execFile;
 
 var PORT = 8080;
 var PAGE = path.join(__dirname, 'index.html');
+// static files besides the page (icons for the browser tab / phone home screen)
+var STATIC = {
+  '/icon-32.png': 'image/png', '/icon-180.png': 'image/png', '/icon-192.png': 'image/png',
+  '/icon-512.png': 'image/png', '/manifest.json': 'application/manifest+json'
+};
 
 var KEYS = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'ENTER', 'BACK', 'HOME', 'EXIT', 'MENU', 'INFO',
   'VOLUMEUP', 'VOLUMEDOWN', 'MUTE', 'CHANNELUP', 'CHANNELDOWN', 'PLAY', 'PAUSE', 'STOP',
@@ -48,6 +53,14 @@ http.createServer(function (req, res) {
     return fs.readFile(PAGE, function (err, data) {
       if (err) { res.writeHead(500); return res.end('no page'); }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+      res.end(data);
+    });
+  }
+
+  if (STATIC[p]) {
+    return fs.readFile(path.join(__dirname, p.slice(1)), function (err, data) {
+      if (err) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': STATIC[p], 'Cache-Control': 'max-age=86400' });
       res.end(data);
     });
   }
