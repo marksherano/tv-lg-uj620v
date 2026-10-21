@@ -15,8 +15,17 @@
     { id: 'esport3', name: 'Esport3', logo: 'https://statics.3cat.cat/img/logos/esport3_colorBgNegre.svg' },
     { id: 'cr', name: 'Catalunya Ràdio', logo: 'https://statics.3cat.cat/img/logos/catradio_colorBgNegre.svg' }
   ];
-  var TABS = ['Inici', 'Directes', 'Últims vídeos', 'Programes', 'Cerca'];
-  var HOME = 0, LIVE = 1, LATEST = 2, PROGRAMS = 3, SEARCH = 4;
+  var TABS = ['Inici', 'Directes', 'Guia', 'Últims vídeos', 'Programes', 'Cerca'];
+  var HOME = 0, LIVE = 1, GUIDE = 2, LATEST = 3, PROGRAMS = 4, SEARCH = 5;
+  // TV schedule codes used by api.3cat.cat/v2/graellatvfutur, keyed by live channel id
+  var EPG = [
+    { live: 'tv3', code: 'CAD_TV3', name: 'TV3' },
+    { live: '324', code: 'CAD_324', name: '3CatInfo' },
+    { live: '33d', code: 'CAD_C33', name: '33' },
+    { live: 'sx3', code: 'CAD_SX3', name: 'SX3' },
+    { live: 'esport3', code: 'CAD_ES3', name: 'Esport3' }
+  ];
+  var DAYS = ['Avui', 'Demà', 'Demà passat'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -157,6 +166,13 @@
   }
 
   function cardHtml(it) {
+    if (it.kind === 'chip') return '<div class="chip' + (it.sel ? ' sel' : '') + (it.gap ? ' gap' : '') + '">' + esc(it.title) + '</div>';
+    if (it.kind === 'epg') {
+      return '<div class="epg' + (it.now ? ' now' : '') + (it.past ? ' past' : '') + '">' +
+        '<div class="et">' + esc(it.time) + '</div>' +
+        '<div class="eb"><div class="en">' + esc(it.title) + '</div><div class="ed">' + esc(it.desc) + '</div></div>' +
+        '<div class="ea">' + (it.now ? '● ARA · OK directe' : (it.prog ? 'OK capítols' : '')) + '</div></div>';
+    }
     if (it.kind === 'letter') return '<div class="letter">' + esc(it.title) + '</div>';
     if (it.kind === 'fav') {
       var on = isFav(it.id);
@@ -180,7 +196,7 @@
     });
     $('grid').innerHTML = h + '<div style="clear:both"></div>';
     // map DOM nodes back to items
-    var nodes = $('grid').querySelectorAll('.card, .letter'), n = 0;
+    var nodes = $('grid').querySelectorAll('.card, .letter, .chip, .epg'), n = 0;
     v.rows.forEach(function (row) { row.forEach(function (it) { it.el = nodes[n++]; }); });
     $('sub').textContent = v.title || '';
     updateFocus();
@@ -241,6 +257,7 @@
     $('search').className = i === SEARCH ? 'search' : 'search hidden';
     if (i === HOME) showHome();
     else if (i === LIVE) showLive();
+    else if (i === GUIDE) showGuide();
     else if (i === LATEST) showLatest();
     else if (i === PROGRAMS) showPrograms();
     else showSearch();
@@ -269,6 +286,53 @@
     var rows = homeRows();
     setRoot({ title: '', rows: rows, home: true });
     if (!rows.length) msg('Aquí sortiran els vídeos que deixis a mitges i els programes que marquis amb ☆');
+  }
+
+  /* ---------- TV guide ---------- */
+  var guideCh = 0, guideDay = 0;
+  function parseDate(s) {   // "21/10/2026 06:00:00" (local time)
+    var m = /(\d+)\/(\d+)\/(\d+) (\d+):(\d+)/.exec(s || '');
+    return m ? new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]).getTime() : 0;
+  }
+  function hm(t) { var d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function guideChips() {
+    var chips = EPG.map(function (c, i) { return { kind: 'chip', ch: i, title: c.name, sel: i === guideCh }; });
+    DAYS.forEach(function (d, i) { chips.push({ kind: 'chip', day: i, title: d, sel: i === guideDay, gap: i === 0 }); });
+    return chips;
+  }
+  function showGuide(keepFocus) {
+    var ch = EPG[guideCh], day = new Date(Date.now() + guideDay * 86400000);
+    var date = pad(day.getDate()) + '/' + pad(day.getMonth() + 1) + '/' + day.getFullYear();
+    var v = { title: ch.name + ' · ' + DAYS[guideDay].toLowerCase() + ' ' + date, rows: [guideChips()], guide: true };
+    if (keepFocus) v.focus = keepFocus;
+    setRoot(v);
+    msg('Carregant programació…');
+    getJSON(API + 'v2/graellatvfutur?_format=json&version=2.0&pagina=1&canal=' + ch.code + '&data_emissio=' + date,
+      function (err, d) {
+        if (view() !== v) return;
+        if (err || !d.resposta) return msg('No s\'ha pogut carregar la programació');
+        var list = (d.resposta.items && d.resposta.items.item) || [], now = Date.now(), nowRow = 0;
+        msg(list.length ? '' : 'No hi ha programació per a aquest dia');
+        var items = list.map(function (p, i) {
+          var a = parseDate(p.data_emissio), b = i + 1 < list.length ? parseDate(list[i + 1].data_emissio) : a + 3600000;
+          var prog = p.programes && p.programes[0];
+          return { kind: 'epg', title: p.titol, desc: (p.entradeta || '').replace(/\s+/g, ' ').trim(),
+                   time: hm(a) + ' – ' + hm(b), now: a <= now && now < b, past: b <= now,
+                   prog: prog ? { id: prog.id, title: prog.desc || p.titol } : null, live: ch.live, chName: ch.name };
+        });
+        items.forEach(function (it, i) { if (it.now) nowRow = i + 1; });
+        v.rows = [v.rows[0]].concat(items.map(function (it) { return [it]; }));
+        if (!keepFocus && nowRow) { v.focus = { r: nowRow, c: 0 }; area = 'grid'; }
+        renderGrid();
+      });
+  }
+  function guideChip(it) {
+    if (it.ch !== undefined) guideCh = it.ch; else guideDay = it.day;
+    showGuide({ r: 0, c: view().focus.c });
+  }
+  function guideOpen(it) {
+    if (it.now) return playLive({ id: it.live, title: it.chName });
+    if (it.prog) openProgram({ id: it.prog.id, title: it.prog.title });
   }
 
   function showLive() {
@@ -593,10 +657,10 @@
       case 38:
         if (f.r === 0) { area = tab === SEARCH ? 'search' : 'tabs'; break; }
         f.r--; f.c = Math.min(f.c, v.rows[f.r].length - 1);
-        if (v.rows[f.r][0].kind === 'letter') f.c = 0;
+        if (v.rows[f.r][0].kind === 'letter' || v.rows[f.r][0].kind === 'chip') f.c = row[0].kind === 'chip' ? Math.min(f.c, v.rows[f.r].length - 1) : 0;
         break;
       case 40:
-        if (f.r < v.rows.length - 1) { var wasLetter = row[0].kind === 'letter'; f.r++; f.c = wasLetter ? 0 : Math.min(f.c, v.rows[f.r].length - 1); }
+        if (f.r < v.rows.length - 1) { var wasLetter = row[0].kind === 'letter' || row[0].kind === 'chip'; f.r++; f.c = wasLetter ? 0 : Math.min(f.c, v.rows[f.r].length - 1); }
         break;
       case 13:
         var it = focusedItem(); if (!it) return true;
@@ -604,6 +668,8 @@
         else if (it.kind === 'live') return playLive(it), true;
         else if (it.kind === 'video') return playVideo(it), true;
         else if (it.kind === 'prog') return openProgram(it), true;
+        else if (it.kind === 'chip') return guideChip(it), true;
+        else if (it.kind === 'epg') return guideOpen(it), true;
         else if (it.kind === 'fav') {
           toast(toggleFav(it.id, it.title, it.img) ? 'Afegit als meus programes' : 'Tret dels meus programes');
           var keep = v.focus; renderGrid(); v.focus = keep; updateFocus(); return true;

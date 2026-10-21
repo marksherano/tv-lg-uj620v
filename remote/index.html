@@ -68,6 +68,18 @@
   <h2>Escriure a la TV</h2>
   <div class="txt"><input id="t" type="text" placeholder="Text per a la cerca…" enterkeyhint="send"><button id="send">Envia</button></div>
 
+  <h2>Missatge a la pantalla</h2>
+  <div class="txt"><input id="m" type="text" maxlength="300" placeholder="Ex.: El sopar és a taula!" enterkeyhint="send"></div>
+  <div class="row r2" style="margin-top:10px">
+    <button id="mToast" class="small">💬 Avís breu</button>
+    <button id="mAlert" class="small warn">🔔 Alerta (cal OK)</button>
+  </div>
+  <div class="row r3">
+    <button data-msg="El sopar és a taula! 🍽" class="small">🍽 Sopar</button>
+    <button data-msg="Hora d'anar a dormir 🌙" class="small">🌙 A dormir</button>
+    <button data-msg="Mira el mòbil, si us plau 📱" class="small">📱 Mòbil</button>
+  </div>
+
   <h2>Apps</h2>
   <div class="row r3">
     <button data-app="com.webos.app.livetv" class="small">📡 TV</button>
@@ -133,6 +145,20 @@
   function sendText() { if (!t.value) return; api('text?t=' + encodeURIComponent(t.value) + '&enter=1'); t.value = ''; t.blur(); }
   document.getElementById('send').addEventListener('click', sendText);
   t.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendText(); });
+
+  var m = document.getElementById('m');
+  function sendMsg(text, mode) {
+    if (!text) { m.focus(); return; }
+    api('msg?mode=' + mode + '&t=' + encodeURIComponent(text)).then(function (j) {
+      if (j && j.returnValue) { status(mode === 'alert' ? 'Alerta enviada' : 'Avís enviat'); m.value = ''; m.blur(); }
+    });
+  }
+  document.getElementById('mToast').addEventListener('click', function () { sendMsg(m.value.trim(), 'toast'); });
+  document.getElementById('mAlert').addEventListener('click', function () { sendMsg(m.value.trim(), 'alert'); });
+  m.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendMsg(m.value.trim(), 'toast'); });
+  document.querySelectorAll('[data-msg]').forEach(function (b) {
+    b.addEventListener('click', function () { sendMsg(b.getAttribute('data-msg'), 'alert'); });
+  });
 
   document.getElementById('scrOff').addEventListener('click', function () { api('screen?on=0'); });
   document.getElementById('scrOn').addEventListener('click', function () { api('screen?on=1'); });

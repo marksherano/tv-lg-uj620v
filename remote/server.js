@@ -14,8 +14,11 @@ var KEYS = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'ENTER', 'BACK', 'HOME', 'EXIT', 'MEN
   'REWIND', 'FASTFORWARD', 'RED', 'GREEN', 'YELLOW', 'BLUE', 'POWER',
   '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-function luna(uri, params, cb) {
-  execFile('luna-send', ['-n', '1', uri, JSON.stringify(params || {})], { timeout: 10000 }, function (err, out) {
+function luna(uri, params, cb, asApp) {
+  var args = ['-n', '1'];
+  if (asApp) args.push('-a', asApp);
+  args.push(uri, JSON.stringify(params || {}));
+  execFile('luna-send', args, { timeout: 10000 }, function (err, out) {
     var r;
     try { r = JSON.parse(out); } catch (e) { r = { returnValue: false, errorText: String(err || out) }; }
     cb(r);
@@ -72,6 +75,21 @@ http.createServer(function (req, res) {
   if (p === '/api/screen') {
     var m = q.on === '1' ? 'turnOnScreen' : 'turnOffScreen';
     return luna('luna://com.webos.service.tvpower/power/' + m, {}, function (r) { send(res, 200, r); });
+  }
+
+  // Message on the TV screen: a short toast, or an alert that stays until OK is pressed.
+  // The notification service renders HTML, so the text is escaped.
+  if (p === '/api/msg') {
+    var txt = String(q.t || '').trim().slice(0, 300)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    if (!txt) return send(res, 400, { error: 'missatge buit' });
+    if (q.mode === 'alert') {
+      return luna('luna://com.webos.notification/createAlert', {
+        sourceId: 'webosbrew', message: '<b>📱 Missatge</b><br/>' + txt, buttons: [{ label: "D'acord" }]
+      }, function (r) { send(res, 200, r); }, 'com.webos.service.secondscreen.gateway');
+    }
+    return luna('luna://com.webos.notification/createToast', { sourceId: 'webosbrew', message: txt },
+      function (r) { send(res, 200, r); }, 'webosbrew');
   }
 
   if (p === '/api/state') return state(function (s) { send(res, 200, s); });
