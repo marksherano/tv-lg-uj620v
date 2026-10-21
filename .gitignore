@@ -16,3 +16,4 @@ __pycache__/
 
 # local Claude Code settings
 .claude/
+testmedia/

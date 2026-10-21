@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111318">
+<title>Envia a la TV</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="manifest" href="/manifest.json">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: #111318; color: #eef0f3; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 480px; margin: 0 auto; padding: 14px 16px 40px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  header a { color: #8b93a1; text-decoration: none; font-size: 15px; }
+  h1 { font-size: 20px; margin: 0; flex: 1; }
+  h2 { font-size: 13px; font-weight: 600; color: #8b93a1; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 8px; }
+  .big { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  label.btn, button { font: inherit; color: inherit; border: 0; background: #1f232b; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+  label.btn { height: 96px; font-size: 18px; flex-direction: column; }
+  label.btn span { font-size: 34px; }
+  label.btn:active, button:active { background: #353b47; }
+  input[type=file] { display: none; }
+  .row { display: flex; gap: 8px; }
+  .row input { flex: 1; min-width: 0; height: 50px; border-radius: 14px; border: 1px solid #2c313b; background: #181b21;
+    color: #fff; padding: 0 14px; font-size: 16px; }
+  .row button { width: 90px; height: 50px; background: #2f7df6; font-weight: 600; }
+  #prog { margin-top: 14px; display: none; }
+  #prog .bar { height: 10px; background: #2c313b; border-radius: 5px; overflow: hidden; }
+  #prog .fill { height: 10px; background: #2f7df6; width: 0; transition: width .2s; }
+  #prog .txt { font-size: 14px; color: #8b93a1; margin-top: 6px; }
+  #st { font-size: 14px; color: #8b93a1; min-height: 20px; margin-top: 10px; }
+  #st.err { color: #ff7676; } #st.ok { color: #6bdc8c; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .it { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #1f232b center / cover no-repeat;
+    display: flex; align-items: center; justify-content: center; font-size: 34px; }
+  .it .del { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; border-radius: 50%; background: rgba(0,0,0,.6);
+    font-size: 15px; display: flex; align-items: center; justify-content: center; }
+  .it .nm { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; padding: 3px 5px; background: rgba(0,0,0,.55);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #all { width: 100%; height: 46px; margin-top: 10px; font-size: 15px; }
+  details { background: #181b21; border-radius: 14px; padding: 12px 16px; font-size: 15px; line-height: 1.5; color: #c9ced6; }
+  summary { cursor: pointer; font-weight: 600; color: #eef0f3; }
+  code { background: #23272f; padding: 1px 6px; border-radius: 6px; font-size: 13px; word-break: break-all; }
+  .muted { color: #8b93a1; font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <header><a href="/">‹ Comandament</a><h1>Envia a la TV</h1></header>
+
+  <div class="big">
+    <label class="btn"><span>🖼</span>Fotos<input id="fPhotos" type="file" accept="image/*" multiple></label>
+    <label class="btn"><span>🎬</span>Vídeo<input id="fVideo" type="file" accept="video/*"></label>
+  </div>
+  <div id="prog"><div class="bar"><div class="fill" id="fill"></div></div><div class="txt" id="ptxt"></div></div>
+  <div id="st"></div>
+
+  <h2>Enllaç</h2>
+  <div class="row"><input id="u" type="url" placeholder="YouTube, 3Cat o una foto/vídeo…" enterkeyhint="go"><button id="go">Obre</button></div>
+
+  <h2>Enviats recentment <span class="muted" id="free"></span></h2>
+  <div class="grid" id="recent"></div>
+  <button id="all">▶ Passi de totes les fotos</button>
+  <p class="muted">Toca una miniatura per tornar-la a mostrar. Els fitxers s'esborren sols al cap de 7 dies.</p>
+
+  <h2>Des del menú Compartir de l'iPhone</h2>
+  <details>
+    <summary>Crear la drecera «Envia a la TV»</summary>
+    <ol>
+      <li>Obre l'app <b>Dreceres</b> i crea'n una de nova amb el nom <b>Envia a la TV</b>.</li>
+      <li>A la informació de la drecera (ⓘ), activa <b>Mostrar al full de compartir</b> i deixa només <b>Imatges</b> i <b>Fitxers multimèdia</b>.</li>
+      <li>Afegeix l'acció <b>Repetir amb cada</b> sobre l'<b>Entrada de la drecera</b>.</li>
+      <li>Dins el bucle, afegeix <b>Obtenir contingut de l'URL</b> amb:
+        <ul>
+          <li>URL: <code id="sc"></code></li>
+          <li>Mètode: <b>POST</b> · Cos de la sol·licitud: <b>Fitxer</b> → <b>Element repetit</b></li>
+        </ul></li>
+      <li>Desa-la. Ara, a Fotos → Compartir → <b>Envia a la TV</b>, la foto o el vídeo sortirà a la tele.</li>
+    </ol>
+    <p class="muted">Funciona quan el mòbil és a la wifi de casa i el comandament de la TV està en marxa.</p>
+  </details>
+</main>
+<script>
+  var st = document.getElementById('st');
+  function status(t, cls) { st.textContent = t; st.className = cls || ''; }
+  document.getElementById('sc').textContent = location.origin + '/api/upload?show=1';
+
+  function upload(file, i, n) {
+    return new Promise(function (ok, ko) {
+      var x = new XMLHttpRequest();
+      x.open('POST', '/api/upload?name=' + encodeURIComponent(file.name || ('fitxer' + i)));
+      x.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      x.upload.onprogress = function (e) {
+        if (!e.lengthComputable) return;
+        var pct = ((i + e.loaded / e.total) / n) * 100;
+        document.getElementById('fill').style.width = pct + '%';
+        document.getElementById('ptxt').textContent = 'Pujant ' + (i + 1) + ' de ' + n + ' · ' + Math.round(e.loaded / 1048576) + ' / ' + Math.round(e.total / 1048576) + ' MB';
+      };
+      x.onload = function () {
+        var j; try { j = JSON.parse(x.responseText); } catch (e) { j = {}; }
+        if (x.status === 200 && j.file) ok(j.file); else ko(new Error(j.error || ('error ' + x.status)));
+      };
+      x.onerror = function () { ko(new Error('sense connexió amb la TV')); };
+      x.send(file);
+    });
+  }
+
+  async function sendFiles(list) {
+    if (!list.length) return;
+    var prog = document.getElementById('prog'); prog.style.display = 'block';
+    var names = [];
+    try {
+      for (var i = 0; i < list.length; i++) names.push(await upload(list[i], i, list.length));
+      status('Obrint a la TV…');
+      var r = await (await fetch('/api/share/show?f=' + encodeURIComponent(names.join('|')))).json();
+      status(r.returnValue ? (names.length > 1 ? names.length + ' fitxers a la TV ✓' : 'A la TV ✓') : 'Error: ' + (r.errorText || r.error), r.returnValue ? 'ok' : 'err');
+    } catch (e) { status('Error: ' + e.message, 'err'); }
+    prog.style.display = 'none'; document.getElementById('fill').style.width = '0';
+    refresh();
+  }
+  ['fPhotos', 'fVideo'].forEach(function (id) {
+    var el = document.getElementById(id);
+    el.addEventListener('change', function () { sendFiles(Array.prototype.slice.call(el.files)); el.value = ''; });
+  });
+
+  async function openUrl() {
+    var u = document.getElementById('u').value.trim(); if (!u) return;
+    status('Obrint…');
+    try {
+      var r = await (await fetch('/api/share/url?u=' + encodeURIComponent(u))).json();
+      if (r.returnValue) { status('A la TV ✓', 'ok'); document.getElementById('u').value = ''; }
+      else status('Error: ' + (r.error || r.errorText), 'err');
+    } catch (e) { status('Sense connexió amb la TV', 'err'); }
+  }
+  document.getElementById('go').addEventListener('click', openUrl);
+  document.getElementById('u').addEventListener('keydown', function (e) { if (e.key === 'Enter') openUrl(); });
+
+  var recentFiles = [];
+  async function refresh() {
+    try {
+      var r = await (await fetch('/api/share/list')).json();
+      recentFiles = r.files || [];
+      document.getElementById('free').textContent = r.freeMB != null ? '· ' + r.freeMB + ' MB lliures' : '';
+      var g = document.getElementById('recent'); g.innerHTML = '';
+      recentFiles.forEach(function (f) {
+        var d = document.createElement('div'); d.className = 'it';
+        if (f.type === 'photo') d.style.backgroundImage = 'url("/share/' + encodeURIComponent(f.file) + '")'; else d.textContent = '🎬';
+        d.innerHTML += '<div class="nm"></div><div class="del">✕</div>';
+        d.querySelector('.nm').textContent = f.file.replace(/^\d+-/, '');
+        d.addEventListener('click', async function (e) {
+          if (e.target.className === 'del') {
+            if (!confirm('Esborrar-lo de la TV?')) return;
+            await fetch('/api/share/delete?f=' + encodeURIComponent(f.file)); return refresh();
+          }
+          var r2 = await (await fetch('/api/share/show?f=' + encodeURIComponent(f.file))).json();
+          status(r2.returnValue ? 'A la TV ✓' : 'Error', r2.returnValue ? 'ok' : 'err');
+        });
+        g.appendChild(d);
+      });
+      document.getElementById('all').style.display = recentFiles.some(function (f) { return f.type === 'photo'; }) ? '' : 'none';
+    } catch (e) { status('Sense connexió amb la TV', 'err'); }
+  }
+  document.getElementById('all').addEventListener('click', async function () {
+    var photos = recentFiles.filter(function (f) { return f.type === 'photo'; }).map(function (f) { return f.file; });
+    var r = await (await fetch('/api/share/show?f=' + encodeURIComponent(photos.join('|')))).json();
+    status(r.returnValue ? 'Passi de ' + photos.length + ' fotos a la TV ✓' : 'Error', r.returnValue ? 'ok' : 'err');
+  });
+  refresh();
+</script>
+</body>
+</html>

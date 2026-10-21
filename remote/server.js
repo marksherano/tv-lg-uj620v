@@ -1,13 +1,14 @@
 /* Web remote for the LG TV. Runs on the TV itself (node 0.12, ES5) as root.
-   GET /            -> remote page
-   GET /api/...     -> JSON; every action is whitelisted and run with execFile (no shell). */
+   GET /            -> remote page (also /envia and /estadistiques)
+   GET /api/...     -> JSON; every action is whitelisted and run with execFile (no shell).
+   Uploads/sharing live in share.js, usage statistics in stats.js. */
 var http = require('http');
 var fs = require('fs');
 var path = require('path');
 var execFile = require('child_process').execFile;
 
 var PORT = 8080;
-var PAGE = path.join(__dirname, 'index.html');
+var PAGES = { '/': 'index.html', '/index.html': 'index.html', '/envia': 'envia.html', '/estadistiques': 'stats.html' };
 // static files besides the page (icons for the browser tab / phone home screen)
 var STATIC = {
   '/icon-32.png': 'image/png', '/icon-180.png': 'image/png', '/icon-192.png': 'image/png',
@@ -35,6 +36,9 @@ function send(res, code, obj) {
   res.end(JSON.stringify(obj));
 }
 
+var share = require('./share.js')(luna, send);
+var stats = require('./stats.js')(luna, send);
+
 function state(cb) {
   var out = {};
   luna('luna://com.webos.applicationManager/getForegroundAppInfo', {}, function (a) {
@@ -49,8 +53,8 @@ function state(cb) {
 http.createServer(function (req, res) {
   var u = require('url').parse(req.url, true), q = u.query, p = u.pathname;
 
-  if (p === '/' || p === '/index.html') {
-    return fs.readFile(PAGE, function (err, data) {
+  if (PAGES[p]) {
+    return fs.readFile(path.join(__dirname, PAGES[p]), function (err, data) {
       if (err) { res.writeHead(500); return res.end('no page'); }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
       res.end(data);
@@ -64,6 +68,14 @@ http.createServer(function (req, res) {
       res.end(data);
     });
   }
+
+  if (p.indexOf('/share/') === 0) return share.serve(req, res, p.slice(7));
+  if (p === '/api/upload') return share.upload(req, res, q);
+  if (p === '/api/share/show') return share.show(q, res);
+  if (p === '/api/share/list') return share.list(res);
+  if (p === '/api/share/delete') return share.remove(q, res);
+  if (p === '/api/share/url') return share.url(q, res);
+  if (p === '/api/stats') return stats.api(res);
 
   if (p === '/api/key') {
     var k = String(q.k || '').toUpperCase();

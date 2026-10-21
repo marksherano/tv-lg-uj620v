@@ -611,7 +611,8 @@
       urls.forEach(function (u) { if (/\.mp4/.test(u.file) && !src.some(function (s) { return s.url === u.file; })) src.push({ url: u.file }); });
       if (!src.length) return msg('Aquest vídeo només està en un format que aquesta TV no pot reproduir');
       var cw = cwGet(it.id);
-      startPlayer({ id: it.id, title: it.title, sub: it.sub, img: it.img, dur: it.dur, sources: src,
+      var info = d.informacio || {};
+      startPlayer({ id: it.id, title: it.title || info.titol || '', sub: it.sub || info.programa || '', img: it.img, dur: it.dur, sources: src,
                     resume: cw ? cw.pos : 0 });
       subTracks = (d.subtitols || []).filter(function (s) { return s.url && (!s.format || s.format === 'vtt'); });
       var pref = load('subLang', 'off'), idx = -1;
@@ -717,4 +718,18 @@
   setInterval(tick, 10000); tick();
 
   openTab(homeRows().length ? HOME : LIVE);
+
+  // Launched/relaunched with { play: <videoId> } (e.g. a 3Cat link sent from the phone): play it directly
+  function launchParams() {
+    try {
+      var p = window.PalmSystem && PalmSystem.launchParams;
+      p = typeof p === 'string' ? JSON.parse(p || '{}') : (p || {});
+      if (p.play && /^\d+$/.test(String(p.play))) { if (playing) closePlayer(); playVideo({ id: +p.play }); }
+    } catch (e) { /* ignore bad params */ }
+  }
+  document.addEventListener('webOSRelaunch', function () {
+    launchParams();
+    if (window.PalmSystem && PalmSystem.activate) PalmSystem.activate();
+  });
+  launchParams();
 })();

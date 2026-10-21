@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111318">
+<title>Estadístiques de la TV</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="manifest" href="/manifest.json">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #111318; color: #eef0f3; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 14px 16px 40px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  header a { color: #8b93a1; text-decoration: none; font-size: 15px; }
+  h1 { font-size: 20px; margin: 0; flex: 1; }
+  h2 { font-size: 13px; font-weight: 600; color: #8b93a1; text-transform: uppercase; letter-spacing: 1px; margin: 26px 0 10px; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .tile { background: #1f232b; border-radius: 14px; padding: 12px; }
+  .tile .v { font-size: 22px; font-weight: 700; }
+  .tile .l { font-size: 12px; color: #8b93a1; margin-top: 2px; }
+  .seg { display: flex; gap: 6px; margin: 4px 0 12px; }
+  .seg button { flex: 1; font: inherit; font-size: 14px; color: #c9ced6; background: #1f232b; border: 0; border-radius: 10px; height: 36px; }
+  .seg button.on { background: #2f7df6; color: #fff; }
+  .chart { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding-top: 18px; }
+  .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; }
+  .col .b { width: 100%; background: #2f7df6; border-radius: 5px 5px 2px 2px; }
+  .col .b.z { background: #2c313b; height: 2px !important; }
+  .col.today .b { background: #c8102e; }
+  .col .n { font-size: 10px; color: #c9ced6; height: 14px; line-height: 14px; white-space: nowrap; }
+  .col .d { font-size: 9px; line-height: 12px; color: #8b93a1; margin-top: 4px; text-align: center; white-space: nowrap; }
+  .app { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; margin-bottom: 10px; font-size: 15px; }
+  .app .bar { grid-column: 1 / -1; height: 8px; background: #23272f; border-radius: 4px; overflow: hidden; }
+  .app .bar div { height: 8px; background: #2f7df6; border-radius: 4px; }
+  .app .t { color: #8b93a1; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td { padding: 7px 4px; border-bottom: 1px solid #23272f; }
+  td:last-child, td:nth-child(2) { text-align: right; color: #8b93a1; white-space: nowrap; }
+  .muted { color: #8b93a1; font-size: 13px; line-height: 1.45; }
+  #err { color: #ff7676; }
+</style>
+</head>
+<body>
+<main>
+  <header><a href="/">‹ Comandament</a><h1>Estadístiques</h1></header>
+  <div id="err"></div>
+
+  <div class="tiles">
+    <div class="tile"><div class="v" id="tToday">–</div><div class="l">Avui</div></div>
+    <div class="tile"><div class="v" id="tWeek">–</div><div class="l">Últims 7 dies</div></div>
+    <div class="tile"><div class="v" id="tAvg">–</div><div class="l">Mitjana diària</div></div>
+  </div>
+
+  <h2>Hores per dia</h2>
+  <div class="chart" id="chart"></div>
+
+  <h2>Per app</h2>
+  <div class="seg" id="seg">
+    <button data-d="1">Avui</button><button data-d="7" class="on">7 dies</button><button data-d="30">30 dies</button>
+  </div>
+  <div id="apps"></div>
+
+  <h2>Obertures des que tens la TV</h2>
+  <table id="launch"></table>
+
+  <p class="muted" id="note"></p>
+</main>
+<script>
+  var FRIENDLY = {
+    'com.webos.app.livetv': 'TV en directe', 'com.webos.app.hdmi1': 'HDMI 1', 'com.webos.app.hdmi2': 'HDMI 2',
+    'com.webos.app.hdmi3': 'HDMI 3', 'com.webos.app.home': 'Menú d\'inici', 'com.webos.app.browser': 'Navegador',
+    'com.webos.app.photovideo': 'Foto i vídeo', 'com.webos.app.tvguide': 'Guia de TV', 'desconeguda': 'Altres'
+  };
+  var data;
+  function name(id) { return FRIENDLY[id] || (data.names && data.names[id]) || id; }
+  function hm(min) {
+    if (!min) return '0 min';
+    var h = Math.floor(min / 60), m = min % 60;
+    return h ? h + ' h' + (m ? ' ' + m + ' min' : '') : m + ' min';
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function key(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function lastDays(n) { var out = []; for (var i = n - 1; i >= 0; i--) out.push(new Date(Date.now() - i * 86400000)); return out; }
+  function total(day) { var t = 0; for (var k in (day || {})) t += day[k]; return t; }
+
+  function render(range) {
+    var days = data.days || {}, todayK = key(new Date());
+    var week = lastDays(7).reduce(function (s, d) { return s + total(days[key(d)]); }, 0);
+    var counted = Object.keys(days).length || 1;
+    var all = Object.keys(days).reduce(function (s, k) { return s + total(days[k]); }, 0);
+    document.getElementById('tToday').textContent = hm(total(days[todayK]));
+    document.getElementById('tWeek').textContent = hm(week);
+    document.getElementById('tAvg').textContent = hm(Math.round(all / counted));
+
+    var ds = lastDays(14), max = Math.max.apply(null, ds.map(function (d) { return total(days[key(d)]); }).concat([60]));
+    var wd = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
+    document.getElementById('chart').innerHTML = ds.map(function (d) {
+      var t = total(days[key(d)]);
+      return '<div class="col' + (key(d) === todayK ? ' today' : '') + '"><div class="n">' + (t ? (t / 60).toFixed(1) : '') +
+        '</div><div class="b' + (t ? '' : ' z') + '" style="height:' + (t / max * 100) + '%"></div><div class="d">' + wd[d.getDay()] + '<br>' + d.getDate() + '</div></div>';
+    }).join('');
+
+    var per = {};
+    lastDays(range).forEach(function (d) { var day = days[key(d)] || {}; for (var a in day) per[a] = (per[a] || 0) + day[a]; });
+    var list = Object.keys(per).sort(function (a, b) { return per[b] - per[a]; }), top = per[list[0]] || 1;
+    document.getElementById('apps').innerHTML = list.length ? list.slice(0, 12).map(function (a) {
+      return '<div class="app"><div>' + esc(name(a)) + '</div><div class="t">' + hm(per[a]) + '</div><div class="bar"><div style="width:' +
+        (per[a] / top * 100) + '%"></div></div></div>';
+    }).join('') : '<p class="muted">Encara no hi ha dades per a aquest període.</p>';
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  document.getElementById('seg').addEventListener('click', function (e) {
+    if (e.target.tagName !== 'BUTTON') return;
+    [].forEach.call(this.children, function (b) { b.className = b === e.target ? 'on' : ''; });
+    render(+e.target.getAttribute('data-d'));
+  });
+
+  fetch('/api/stats').then(function (r) { return r.json(); }).then(function (j) {
+    data = j;
+    render(7);
+    document.getElementById('launch').innerHTML = (j.launches || []).slice(0, 15).map(function (l) {
+      var d = new Date(l.last);
+      return '<tr><td>' + esc(name(l.id)) + '</td><td>' + l.count.toLocaleString('ca') + ' cops</td><td>' +
+        d.getDate() + '/' + (d.getMonth() + 1) + '</td></tr>';
+    }).join('');
+    var since = new Date(j.since);
+    document.getElementById('note').textContent = 'El temps d\'ús es compta des del ' + since.getDate() + '/' + (since.getMonth() + 1) + '/' +
+      since.getFullYear() + ', minut a minut, només amb la pantalla encesa i mentre el comandament està en marxa (després d\'una aturada completa, ' +
+      'fins que obres Homebrew Channel). Les obertures són el comptador propi de la TV; la darrera columna és l\'última vegada.';
+  }).catch(function () { document.getElementById('err').textContent = 'Sense connexió amb la TV'; });
+</script>
+</body>
+</html>
