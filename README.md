@@ -63,3 +63,7 @@ Per desfer qualsevol canvi: esborra el fitxer corresponent de `init.d` i reinici
 - Les apps de Homebrew poden executar ordres com a root amb `luna://org.webosbrew.hbchannel.service/exec`.
 - API pública de 3Cat: `api.3cat.cat/videos`, `api.3cat.cat/programestv` i
   `api-media.3cat.cat/pvideo/media.jsp` (MP4 per als vídeos, HLS per als directes, subtítols VTT).
+
+## Llicència
+
+[MIT](LICENSE). Les dades i els continguts de 3Cat són propietat de la CCMA; aquest projecte només en consumeix l'API pública.
