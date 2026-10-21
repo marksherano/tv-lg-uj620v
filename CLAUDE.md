@@ -1,0 +1,54 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+Home-made apps and tools for one specific TV: an LG 49UJ620V (2017, webOS 3.9.3, firmware 06.10.75), rooted with Homebrew Channel. There is no test suite or linter; "testing" means installing on the real TV and driving it (see below). User-facing text (UI, READMEs, commit messages) is in Catalan; `README.es.md` is the Spanish mirror of `README.md` and must be kept in sync.
+
+## Commands
+
+All tools read the TV address from `TV_IP` (default `192.168.1.37`). On Git Bash for Windows, prefix commands that pass `/tmp/...` paths with `MSYS_NO_PATHCONV=1`, otherwise they get rewritten to Windows paths.
+
+```bash
+# Build an app folder into an .ipk (also generates icons if the folder has none)
+python build/make_ipk.py brillo build/brillo.ipk
+
+# Run a shell command on the TV as root (telnet, port 23); 2nd arg = seconds to wait for output
+python tvtool/tsh.py 'luna-send -n 1 luna://com.webos.applicationManager/getForegroundAppInfo "{}"' 10
+
+# Upload a file to the TV (base64 chunks over telnet, MD5-verified)
+MSYS_NO_PATHCONV=1 python tvtool/push.py build/brillo.ipk /tmp/app.ipk
+
+# Install an uploaded ipk
+python tvtool/tsh.py 'luna-send -w 20000 -i luna://com.webos.appInstallService/dev/install "{\"id\":\"cat.brillo.plus\",\"ipkUrl\":\"/tmp/app.ipk\",\"subscribe\":true}"' 30
+
+# Drive/inspect a running dev app via the webOS remote debugger (port 9998, Chrome DevTools Protocol).
+# PAGE selects the page by URL substring (brillo | tresc).
+PAGE=tresc python tvtool/cdp.py "document.querySelector('.tab.sel').textContent"   # eval JS
+PAGE=tresc python tvtool/key.py 40 40 13      # send keyCodes (37-40 arrows, 13 OK, 461 BACK)
+PAGE=tresc python tvtool/shot.py out.png      # screenshot (video plane is not captured)
+```
+
+Use `PYTHONIOENCODING=utf-8` when output may contain non-ASCII text (the Windows console is cp1252).
+
+Root access over telnet only exists after Homebrew Channel's startup script has run, which on this TV happens **only when the user opens the Homebrew Channel app** after a cold boot. If port 23 is closed, ask the user to open it (or the TV is off). Bump `version` in `appinfo.json` before reinstalling an app.
+
+## Architecture
+
+Three self-contained deliverables plus PC-side tooling:
+
+- **`brillo/` (Brillo+, id `cat.brillo.plus`)** — web app that reads/writes picture settings via `luna://com.webos.settingsservice/{get,set}SystemSettings` (category `picture`; values keep their original JSON type, some keys are strings). If a direct call is refused it falls back to running `luna-send` through `luna://org.webosbrew.hbchannel.service/exec` (root shell). Config is written to `/media/developer/brillo/` (`config.json` for the UI, `schedule.conf` for the daemon). `daemon.sh` (started by `tvtool/brillo-init` from init.d) polls `schedule.conf` every 30 s and applies a profile only when the active time slot changes.
+- **`cat3/` (3Cat Lite, id `cat.tresc.lite`)** — unofficial client for the public 3Cat APIs: `api.3cat.cat/videos` and `/programestv` (catalogue; there is no working text search, so search is local over the cached program list) `api.3cat.cat/v2/graellatvfutur?canal=CAD_TV3&data_emissio=dd/mm/yyyy` (TV guide; channel codes in the `EPG` table) and `api-media.3cat.cat/pvideo/media.jsp?idint=…` (MP4 URLs for VOD, HLS for live, VTT subtitles). Subtitles are fetched and rendered by the app itself, not with `<track>`. Navigation is a stack of "views", each a list of rows of items; the same grid/focus code serves every tab. Favourites, "continue watching" and the subtitle language live in `localStorage`.
+- **`remote/`** — Node HTTP server that runs **on the TV** (`/media/developer/remote/`, port 8080, started by `remote/remote-init`) plus the phone page it serves. Every action is whitelisted and run with `execFile('luna-send', …)` (no shell). Keys go through `luna://com.webos.service.networkinput/sendSpecialKey`; on-screen messages use `com.webos.notification/createToast` (as `webosbrew`) and `createAlert` (as `com.webos.service.secondscreen.gateway`) via `luna-send -a`. Deploy by pushing `server.js`/`index.html` to `/media/developer/remote/` and re-running `/var/lib/webosbrew/init.d/remote`.
+- **`tvtool/`** — Python tooling above, plus `debloat` (init.d script: hosts-blocks LG ad/telemetry domains, bind-mounts empty dirs over unwanted system apps, hides launcher entries by bind-mounting edited `appinfo.json`, then `restart sam`).
+
+Boot hooks live in `/var/lib/webosbrew/init.d/` on the TV (files must be executable, names without extensions, exit 0).
+
+## Platform constraints that bite
+
+- **Chromium 38**: app JS must be ES5 (no `let`/`const`/arrow functions/template literals), CSS needs `-webkit-` flex prefixes, no CSS variables. The on-TV server runs **Node 0.12**, so it is ES5 too. `.gitattributes` forces LF endings; scripts with CRLF break on the TV.
+- `PalmSystem.platformBack()` is a no-op here; apps exit with `window.close()`.
+- Newly installed apps do not appear in the home bar once the user has edited it: add `"<appid>_default"` to db8 kind `com.webos.launcher.appordering:1` (`luna-send -a com.webos.surfacemanager luna://com.palm.db/merge …`) and reboot.
+- **Never create `com.palmdts.devmode.service/start-devmode.sh`**: this firmware verifies its signature and on failure disables dev mode and deletes `/media/developer` (all homebrew apps, configs and the remote server). Boot persistence via the activity manager is also refused on this firmware; the agreed workaround is that the user opens Homebrew Channel after a cold boot.
+- Daily power on/off uses the firmware's own timers (settings category `time`, `onTimer*` / `offTimer*`), not an app — nothing can run while the TV is off.
