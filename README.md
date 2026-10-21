@@ -1,5 +1,7 @@
 # tv-lg-uj620v
 
+**Català** · [Castellano](README.es.md)
+
 Apps i eines casolanes per a una **LG 49UJ620V** (2017, webOS 3.9) rootejada amb
 [Homebrew Channel](https://github.com/webosbrew/webos-homebrew-channel).
 
