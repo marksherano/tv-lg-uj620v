@@ -1,0 +1,40 @@
+html, body { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden;
+  background: #101418; color: #e8edf2; font-family: "LG Smart UI", "Museo Sans", Arial, sans-serif; }
+#app { padding: 36px 80px; box-sizing: border-box; height: 1080px; position: relative; }
+
+.header { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; height: 70px; }
+.logo { font-size: 56px; font-weight: bold; letter-spacing: 1px; }
+.logo span { color: #ffc23d; }
+.dim { -webkit-flex: 1; flex: 1; margin-left: 40px; font-size: 26px; color: #8a96a3; }
+.status { font-size: 26px; color: #8a96a3; min-width: 400px; text-align: right; }
+.status.err { color: #ff6b6b; }
+.status.ok { color: #6bdc8c; }
+
+.cols { display: -webkit-flex; display: flex; margin-top: 20px; }
+.col-main { width: 980px; margin-right: 60px; }
+.col-side { -webkit-flex: 1; flex: 1; }
+h2 { font-size: 28px; font-weight: normal; color: #8a96a3; text-transform: uppercase;
+  letter-spacing: 2px; margin: 6px 0 10px; }
+
+.row { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  height: 50px; padding: 0 22px; margin-bottom: 5px; white-space: nowrap; border-radius: 10px; background: #1a2027;
+  border: 3px solid transparent; font-size: 26px; }
+.row.focus { border-color: #ffc23d; background: #252d36; }
+.row .label { width: 330px; }
+.row .bar { -webkit-flex: 1; flex: 1; height: 12px; background: #333d48; border-radius: 6px; position: relative; margin-right: 30px; }
+.row .fill { position: absolute; left: 0; top: 0; bottom: 0; background: #ffc23d; border-radius: 6px; }
+.row .fill.center { background: #5fb2ff; }
+.row .val { width: 160px; text-align: right; font-weight: bold; }
+.row .opts { -webkit-flex: 1; flex: 1; display: -webkit-flex; display: flex; }
+.row .opt { padding: 2px 14px; margin-right: 8px; border-radius: 6px; color: #8a96a3; font-size: 24px; }
+.row .opt.sel { background: #ffc23d; color: #101418; font-weight: bold; }
+
+.preset { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.preset .pname { width: 200px; }
+.preset .pdesc { -webkit-flex: 1; flex: 1; font-size: 20px; color: #8a96a3; overflow: hidden; text-overflow: ellipsis; margin-right: 16px; }
+.preset .pact { font-size: 20px; color: #ffc23d; }
+
+.sched .label { width: 230px; }
+.sched .val { width: auto; -webkit-flex: 1; flex: 1; text-align: right; }
+
+.footer { position: absolute; bottom: 20px; left: 80px; right: 80px; font-size: 22px; color: #6c7783; text-align: center; }

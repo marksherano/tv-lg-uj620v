@@ -1,0 +1,18 @@
+# built packages (rebuild with build/make_ipk.py)
+*.ipk
+
+# local data: API dumps, third-party downloads, screenshots with broadcaster imagery
+apidump/
+pkg/
+shot*.png
+brillo_captura.png
+apps.txt
+tvtool/apps.json
+
+# TV pairing key
+tvtool/clientkey.txt
+
+__pycache__/
+
+# local Claude Code settings
+.claude/

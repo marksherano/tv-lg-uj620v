@@ -1,0 +1,15 @@
+{
+  "id": "cat.tresc.lite",
+  "version": "1.1.0",
+  "vendor": "Marc",
+  "type": "web",
+  "main": "index.html",
+  "title": "3Cat Lite",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#0b0b0f",
+  "iconColor": "#e2003a",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true,
+  "transparent": false
+}

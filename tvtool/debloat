@@ -1,0 +1,49 @@
+#!/bin/sh
+# Debloat LG 49UJ620V (webOS 3.9). Launched at boot by Homebrew Channel (run-parts).
+# Undo: rm /var/lib/webosbrew/init.d/debloat && reboot
+
+# 1) Block LG ads / telemetry (/etc/hosts is a writable bind-mount set up by webosbrew startup.sh)
+for h in ngfts.lge.com aic-ngfts.lge.com \
+         lgsmartad.com ad.lgsmartad.com info.lgsmartad.com \
+         eu.ad.lgsmartad.com eu.info.lgsmartad.com eu.ibs.lgappstv.com \
+         ad.lgappstv.com ibis.lgappstv.com \
+         lgad.cjpowercast.com yumenetworks.com smartclip.net smartclip.com \
+         homeprv.lgtvcommon.com; do
+    grep -q " $h\$" /etc/hosts || echo "127.0.0.1 $h" >> /etc/hosts
+done
+
+app_dir() {
+    for base in /usr/palm/applications /mnt/otncabi/usr/palm/applications; do
+        [ -d "$base/$1" ] && { echo "$base/$1"; return; }
+    done
+}
+
+# 2) Disable apps: mount an empty dir over them (LivePlus/ACR, ads, promos)
+mkdir -p /tmp/debloat/empty /tmp/debloat/hide
+for id in com.webos.app.acrcomponent com.webos.app.acrhdmi1 com.webos.app.acrhdmi2 \
+          com.webos.app.acrhdmi3 com.webos.app.acrhdmi4 com.webos.app.acroverlay \
+          com.webos.app.adapp com.webos.app.brandshop com.webos.app.tips \
+          com.webos.app.membership com.webos.app.store-demo; do
+    d=$(app_dir $id); [ -n "$d" ] && mount --bind /tmp/debloat/empty "$d"
+done
+
+# 3) Hide apps from the launcher (still reachable from Settings)
+for id in com.webos.app.tvuserguide com.webos.app.scheduler com.webos.app.notificationcenter \
+          com.webos.app.connectionwizard; do
+    d=$(app_dir $id); [ -n "$d" ] || continue
+    if grep -q '"visible"' "$d/appinfo.json"; then
+        sed 's/"visible" *: *true/"visible": false/' "$d/appinfo.json"
+    else
+        sed '1s/{/{"visible": false,/' "$d/appinfo.json"
+    fi > "/tmp/debloat/hide/$id.json" &&
+        mount --bind "/tmp/debloat/hide/$id.json" "$d/appinfo.json"
+done
+
+# SAM scans apps before this script runs; restart it so the hidden flags apply
+restart sam >/dev/null 2>&1
+
+# 4) Keep LivePlus and ad cookie off
+luna-send -n 1 luna://com.webos.settingsservice/setSystemSettings '{"category":"option","settings":{"livePlus":"off"}}' >/dev/null
+luna-send -n 1 luna://com.webos.settingsservice/setSystemSettings '{"category":"general","settings":{"adCookie":"off"}}' >/dev/null
+
+exit 0

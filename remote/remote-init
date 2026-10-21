@@ -1,0 +1,7 @@
+#!/bin/sh
+# Starts the web remote (http://<tv>:8080) — run-parts from webosbrew startup.sh
+S=/media/developer/remote/server.js
+[ -f "$S" ] || exit 0
+pkill -f "remote/server.js" 2>/dev/null
+nohup node "$S" >/tmp/remote.log 2>&1 &
+exit 0

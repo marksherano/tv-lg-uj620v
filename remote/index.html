@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111318">
+<title>Comandament TV</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: #111318; color: #eef0f3; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; }
+  main { max-width: 420px; margin: 0 auto; padding: 14px 16px 30px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  h1 { font-size: 20px; margin: 0; }
+  #st { font-size: 13px; color: #8b93a1; text-align: right; }
+  #st.err { color: #ff7676; }
+  button { font: inherit; color: inherit; border: 0; background: #1f232b; border-radius: 14px; padding: 0;
+    height: 54px; font-size: 16px; cursor: pointer; touch-action: manipulation; }
+  button:active { background: #353b47; transform: scale(.97); }
+  .row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .r2 { grid-template-columns: 1fr 1fr; } .r3 { grid-template-columns: repeat(3, 1fr); } .r4 { grid-template-columns: repeat(4, 1fr); }
+  .pad { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 76px); gap: 8px; margin: 16px 0; }
+  .pad button { height: auto; font-size: 26px; }
+  .pad .ok { background: #c8102e; font-size: 20px; font-weight: 700; border-radius: 50%; }
+  .pad .ok:active { background: #e0284a; }
+  .red { background: #3a1d22; } .warn { background: #3a2f17; }
+  h2 { font-size: 13px; font-weight: 600; color: #8b93a1; text-transform: uppercase; letter-spacing: 1px; margin: 22px 0 8px; }
+  .vol { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: center; }
+  #vol { text-align: center; font-size: 15px; color: #8b93a1; }
+  .txt { display: flex; gap: 8px; }
+  .txt input { flex: 1; min-width: 0; height: 50px; border-radius: 14px; border: 1px solid #2c313b; background: #181b21;
+    color: #fff; padding: 0 14px; font-size: 16px; }
+  .txt button { width: 80px; height: 50px; }
+  .small { font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <header><h1>📺 Comandament</h1><div id="st">connectant…</div></header>
+
+  <div class="row r3">
+    <button data-k="BACK">↩ Enrere</button>
+    <button data-k="HOME">⌂ Inici</button>
+    <button data-k="INFO" class="small">ⓘ Info</button>
+  </div>
+
+  <div class="pad">
+    <span></span><button data-k="UP">▲</button><span></span>
+    <button data-k="LEFT">◀</button><button data-k="ENTER" class="ok">OK</button><button data-k="RIGHT">▶</button>
+    <span></span><button data-k="DOWN">▼</button><span></span>
+  </div>
+
+  <div class="vol">
+    <button data-k="VOLUMEDOWN">🔉 −</button>
+    <button data-k="MUTE" id="vol">🔇</button>
+    <button data-k="VOLUMEUP">🔊 +</button>
+  </div>
+
+  <div class="row r4" style="margin-top:10px">
+    <button data-k="REWIND">⏪</button><button data-k="PLAY">▶</button><button data-k="PAUSE">⏸</button><button data-k="FASTFORWARD">⏩</button>
+  </div>
+  <div class="row r2">
+    <button data-k="CHANNELDOWN" class="small">Canal −</button><button data-k="CHANNELUP" class="small">Canal +</button>
+  </div>
+
+  <h2>Escriure a la TV</h2>
+  <div class="txt"><input id="t" type="text" placeholder="Text per a la cerca…" enterkeyhint="send"><button id="send">Envia</button></div>
+
+  <h2>Apps</h2>
+  <div class="row r3">
+    <button data-app="com.webos.app.livetv" class="small">📡 TV</button>
+    <button data-app="cat.tresc.lite" class="small">3Cat Lite</button>
+    <button data-app="youtube.leanback.v4" class="small">YouTube</button>
+    <button data-app="netflix" class="small">Netflix</button>
+    <button data-app="org.jellyfin.webos" class="small">Jellyfin</button>
+    <button data-app="spotify-beehive" class="small">Spotify</button>
+    <button data-app="cat.ccma.super3.webos" class="small">SX3</button>
+    <button data-app="cat.brillo.plus" class="small">☀ Brillo+</button>
+    <button data-app="org.webosbrew.hbchannel" class="small">Homebrew</button>
+  </div>
+
+  <h2>Entrades</h2>
+  <div class="row r3">
+    <button data-app="com.webos.app.hdmi1" class="small">HDMI 1</button>
+    <button data-app="com.webos.app.hdmi2" class="small">HDMI 2</button>
+    <button data-app="com.webos.app.hdmi3" class="small">HDMI 3</button>
+  </div>
+
+  <h2>Energia</h2>
+  <div class="row r3">
+    <button id="scrOff" class="small warn">Pantalla off</button>
+    <button id="scrOn" class="small">Pantalla on</button>
+    <button id="power" class="small red">⏻ Apagar</button>
+  </div>
+</main>
+<script>
+  var st = document.getElementById('st');
+  function api(path) {
+    if (navigator.vibrate) navigator.vibrate(15);
+    return fetch('/api/' + path).then(function (r) { return r.json(); }).then(function (j) {
+      if (j.returnValue === false || j.error) { status('Error: ' + (j.errorText || j.error), true); }
+      return j;
+    }).catch(function () { status('Sense connexió amb la TV', true); });
+  }
+  function status(t, err) { st.textContent = t; st.className = err ? 'err' : ''; }
+
+  function refresh() {
+    fetch('/api/state').then(function (r) { return r.json(); }).then(function (s) {
+      status(s.app ? s.app.replace(/^com\.webos\.app\./, '') : 'connectat');
+      document.getElementById('vol').textContent = s.muted ? '🔇 silenci' : '🔈 ' + s.volume;
+    }).catch(function () { status('Sense connexió amb la TV', true); });
+  }
+
+  // keys: hold to repeat (arrows / volume)
+  var REPEAT = { UP: 1, DOWN: 1, LEFT: 1, RIGHT: 1, VOLUMEUP: 1, VOLUMEDOWN: 1 };
+  document.querySelectorAll('[data-k]').forEach(function (b) {
+    var k = b.getAttribute('data-k'), timer;
+    function stop() { clearTimeout(timer); clearInterval(timer); }
+    b.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      api('key?k=' + k).then(function () { if (/VOLUME|MUTE/.test(k)) setTimeout(refresh, 300); });
+      if (REPEAT[k]) timer = setTimeout(function () { timer = setInterval(function () { api('key?k=' + k); }, 160); }, 450);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) { b.addEventListener(ev, stop); });
+  });
+  document.querySelectorAll('[data-app]').forEach(function (b) {
+    b.addEventListener('click', function () { api('launch?id=' + encodeURIComponent(b.getAttribute('data-app'))).then(function () { setTimeout(refresh, 1500); }); });
+  });
+
+  var t = document.getElementById('t');
+  function sendText() { if (!t.value) return; api('text?t=' + encodeURIComponent(t.value) + '&enter=1'); t.value = ''; t.blur(); }
+  document.getElementById('send').addEventListener('click', sendText);
+  t.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendText(); });
+
+  document.getElementById('scrOff').addEventListener('click', function () { api('screen?on=0'); });
+  document.getElementById('scrOn').addEventListener('click', function () { api('screen?on=1'); });
+  document.getElementById('power').addEventListener('click', function () {
+    if (confirm('Apagar la TV? Des d\'aquí no la podràs tornar a encendre.')) api('key?k=POWER');
+  });
+
+  refresh(); setInterval(refresh, 5000);
+</script>
+</body>
+</html>

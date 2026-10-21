@@ -1,0 +1,15 @@
+{
+  "id": "cat.brillo.plus",
+  "version": "1.0.4",
+  "vendor": "Marc",
+  "type": "web",
+  "main": "index.html",
+  "title": "Brillo+",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#101418",
+  "iconColor": "#ffc23d",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true,
+  "transparent": false
+}

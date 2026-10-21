@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>3Cat Lite</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="browse">
+  <div class="top">
+    <div class="logo">3Cat <span>Lite</span></div>
+    <div id="tabs" class="tabs"></div>
+    <div id="clock" class="clock"></div>
+  </div>
+  <div id="sub" class="sub"></div>
+  <div id="search" class="search hidden"><input id="q" type="text" placeholder="Cerca un programa…"></div>
+  <div id="viewport" class="viewport"><div id="grid" class="grid"></div></div>
+  <div id="msg" class="msg"></div>
+</div>
+<div id="toast" class="toast hidden"></div>
+<div id="player" class="player hidden">
+  <video id="video" preload="auto"></video>
+  <div id="osd" class="osd">
+    <div id="osdTitle" class="osd-title"></div>
+    <div id="osdSub" class="osd-sub"></div>
+    <div class="osd-bar"><div id="osdFill" class="osd-fill"></div></div>
+    <div class="osd-row"><span id="osdTime"></span><span id="osdState"></span><span id="osdDur"></span></div>
+    <div class="osd-help">OK pausa · ◀ ▶ 10 s (mantén: 60 s) · ▲ subtítols · ENRERE sortir</div>
+  </div>
+  <div id="subs" class="subs"></div>
+  <div id="spinner" class="spinner">Carregant…</div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

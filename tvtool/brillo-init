@@ -1,0 +1,7 @@
+#!/bin/sh
+# Starts the Brillo+ schedule daemon at boot (run-parts from webosbrew startup.sh)
+D=/media/developer/apps/usr/palm/applications/cat.brillo.plus/daemon.sh
+[ -f "$D" ] || exit 0
+pkill -f "$D" 2>/dev/null
+nohup sh "$D" >/dev/null 2>&1 &
+exit 0
