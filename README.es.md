@@ -34,6 +34,35 @@ Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada 
 
 Las interfaces de las apps están en catalán.
 
+## Cómo rootear la TV
+
+Todo esto necesita root y [Homebrew Channel](https://github.com/webosbrew/webos-homebrew-channel).
+Antes de nada, comprueba tu modelo y firmware en [CanI.RootMy.TV](https://cani.rootmy.tv). Métodos conocidos
+según [webosbrew.org](https://www.webosbrew.org/rooting/) (consultado en octubre de 2026):
+
+| Método | webOS | Estado |
+|---|---|---|
+| [DejaVuln](https://github.com/throwaway96/dejavuln-autoroot) | 3.5 y posteriores | **El que toca para esta TV.** webOS 3.5 y 4.0 no tienen parche y es muy probable que no lo reciban nunca; el firmware reciente de la mayoría de webOS 5+ y todo webOS 9 sí están parcheados. |
+| [faultmanager](https://github.com/throwaway96/faultmanager-autoroot) | 4.0 y posteriores (incluido webOS 9) | Sin parche conocido. No sirve para webOS 3.x. |
+| [WTA](https://www.webosbrew.org/rooting/wta) | — | Parcheado en actualizaciones recientes. |
+| [crashd](https://gist.github.com/throwaway96/e811b0f7cc2a705a5a476a8dfa45e09f) | — | Parcheado en abril de 2024. |
+| [RootMy.TV](https://rootmy.tv) | 3 a 6 | Parcheado en 2022; seguramente ya no funciona. |
+| [GetMeNow](https://www.webosbrew.org/rooting/getmenow) | Algunos modelos de 1 a 3 | No funciona desde que se actualizó la app Developer Mode a principios de 2024. |
+| [NVM](https://gist.github.com/throwaway96/827ff726981cc2cbc46a22a2ad7337a1) | Anteriores a 4.0 | Modificación de hardware: hay que abrir la TV y hay alta tensión. Solo como último recurso. |
+
+Con DejaVuln, resumido de [sus instrucciones](https://github.com/throwaway96/dejavuln-autoroot#instructions):
+
+1. Descarga la última versión (no el «Source code») y descomprímela en la raíz de un USB con una
+   sola partición FAT32 o NTFS, sin ninguna carpeta de por medio.
+2. Conéctalo a la TV (que sea el único USB), ábrelo con la app de **Música** o el reproductor
+   multimedia, entra en la carpeta `lol$(sh$IFS$(find$IFS/tmp` e intenta reproducir el archivo `.mp3`
+   que hay. Es normal que salga un error diciendo que no se puede reproducir.
+3. Cuando los avisos digan que el root se ha completado, quita el USB. Si no ves Homebrew Channel,
+   reinicia la TV con el inicio rápido desactivado.
+
+Con la TV rooteada, **no instales la app Developer Mode de LG** (si la tienes, bórrala antes de
+reiniciar) y **no actualices el firmware**: el root podría desaparecer y quizá no se podría volver a hacer.
+
 ## Requisitos
 
 - TV LG con webOS 3.x rooteada y Homebrew Channel (telnet root en el puerto 23).

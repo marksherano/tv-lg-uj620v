@@ -32,6 +32,35 @@ Apps i eines casolanes per a una **LG 49UJ620V** (2017, webOS 3.9) rootejada amb
 
 <img src="docs/mobil.png" alt="Comandament web al mòbil: comandament amb l'avís del teclat, Envia a la TV, Estadístiques i Estat de la TV" width="830">
 
+## Com rootejar la TV
+
+Tot això necessita root i [Homebrew Channel](https://github.com/webosbrew/webos-homebrew-channel).
+Abans de res, comprova el teu model i firmware a [CanI.RootMy.TV](https://cani.rootmy.tv). Mètodes coneguts
+segons [webosbrew.org](https://www.webosbrew.org/rooting/) (consultat l'octubre de 2026):
+
+| Mètode | webOS | Estat |
+|---|---|---|
+| [DejaVuln](https://github.com/throwaway96/dejavuln-autoroot) | 3.5 i posteriors | **El que toca per a aquesta TV.** webOS 3.5 i 4.0 no tenen pegat i és molt probable que no en rebin mai; el firmware recent de la majoria de webOS 5+ i tot webOS 9 sí que estan pegats. |
+| [faultmanager](https://github.com/throwaway96/faultmanager-autoroot) | 4.0 i posteriors (inclòs webOS 9) | Sense pegat conegut. No serveix per a webOS 3.x. |
+| [WTA](https://www.webosbrew.org/rooting/wta) | — | Pegat en actualitzacions recents. |
+| [crashd](https://gist.github.com/throwaway96/e811b0f7cc2a705a5a476a8dfa45e09f) | — | Pegat l'abril de 2024. |
+| [RootMy.TV](https://rootmy.tv) | 3 a 6 | Pegat el 2022; segurament ja no funciona. |
+| [GetMeNow](https://www.webosbrew.org/rooting/getmenow) | Alguns models d'1 a 3 | No funciona des que es va actualitzar l'app Developer Mode a principis de 2024. |
+| [NVM](https://gist.github.com/throwaway96/827ff726981cc2cbc46a22a2ad7337a1) | Anteriors a 4.0 | Modificació de maquinari: cal obrir la TV i hi ha alta tensió. Només com a últim recurs. |
+
+Amb DejaVuln, resumit de [les seves instruccions](https://github.com/throwaway96/dejavuln-autoroot#instructions):
+
+1. Descarrega l'última versió (no el «Source code») i descomprimeix-la a l'arrel d'un USB amb una
+   sola partició FAT32 o NTFS, sense cap carpeta pel mig.
+2. Connecta'l a la TV (que sigui l'únic USB), obre'l amb l'app de **Música** o el reproductor
+   multimèdia, entra a la carpeta `lol$(sh$IFS$(find$IFS/tmp` i intenta reproduir el fitxer `.mp3`
+   que hi ha. És normal que surti un error dient que no es pot reproduir.
+3. Quan els avisos diguin que el root s'ha completat, treu l'USB. Si no veus Homebrew Channel,
+   reinicia la TV amb l'encesa ràpida desactivada.
+
+Amb la TV rootejada, **no instal·lis l'app Developer Mode de LG** (si la tens, esborra-la abans de
+reiniciar) i **no actualitzis el firmware**: el root podria desaparèixer i potser no es podria tornar a fer.
+
 ## Requisits
 
 - TV LG amb webOS 3.x rootejada i Homebrew Channel (telnet root al port 23).
