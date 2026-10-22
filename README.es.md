@@ -28,7 +28,9 @@ Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada 
 
 ![3Cat Lite — guía de programación](docs/3cat-guia.png)
 
-<img src="docs/mobil.png" alt="Mando web en el móvil: mando, Enviar a la TV y Estadísticas" width="625">
+![Jellyfin Lite — biblioteca de películas](docs/jellyfin.jpg)
+
+<img src="docs/mobil.png" alt="Mando web en el móvil: mando con el aviso del teclado, Enviar a la TV, Estadísticas y Estado de la TV" width="830">
 
 Las interfaces de las apps están en catalán.
 

@@ -28,7 +28,9 @@ Apps i eines casolanes per a una **LG 49UJ620V** (2017, webOS 3.9) rootejada amb
 
 ![3Cat Lite — guia de programació](docs/3cat-guia.png)
 
-<img src="docs/mobil.png" alt="Comandament web al mòbil: comandament, Envia a la TV i Estadístiques" width="625">
+![Jellyfin Lite — biblioteca de pel·lícules](docs/jellyfin.jpg)
+
+<img src="docs/mobil.png" alt="Comandament web al mòbil: comandament amb l'avís del teclat, Envia a la TV, Estadístiques i Estat de la TV" width="830">
 
 ## Requisits
 
