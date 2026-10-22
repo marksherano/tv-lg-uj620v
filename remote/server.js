@@ -45,6 +45,19 @@ var ENERGY = ['off', 'min', 'med', 'max'];
 var SLEEP = ['off', '10', '20', '30', '60', '90', '120', '180', '240'];
 var sleepSet = null; // { v: '30', at: ms } when the timer was set from here, to show what is left
 
+function toast(msg) {
+  luna('luna://com.webos.notification/createToast', { sourceId: 'webosbrew', message: msg }, function (r) {
+    if (!r.returnValue) console.log('toast failed: ' + JSON.stringify(r));
+  }, 'webosbrew');
+}
+
+function sleepMsg(mins) {
+  var m = +mins, end = new Date(Date.now() + m * 60000);
+  var dur = m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + m % 60 + ' min' : '');
+  var hh = ('0' + end.getHours()).slice(-2) + ':' + ('0' + end.getMinutes()).slice(-2);
+  return "⏻ La TV s'apagarà d'aquí a " + dur + ' (a les ' + hh + ')';
+}
+
 function getSetting(category, key, cb) {
   luna('luna://com.webos.settingsservice/getSystemSettings', { category: category, keys: [key] }, function (r) {
     cb(r.settings ? r.settings[key] : undefined);
@@ -155,9 +168,12 @@ http.createServer(function (req, res) {
     if (SLEEP.indexOf(mins) < 0) return send(res, 400, { error: 'valor invàlid' });
     // off first, so choosing the same time again restarts the countdown
     return setSetting('time', 'sleepTimer', 'off', function () {
-      if (mins === 'off') { sleepSet = null; return send(res, 200, { returnValue: true }); }
+      if (mins === 'off') {
+        sleepSet = null; toast("⏻ Temporitzador d'apagada cancel·lat");
+        return send(res, 200, { returnValue: true });
+      }
       setSetting('time', 'sleepTimer', mins, function (r) {
-        if (r.returnValue) sleepSet = { v: mins, at: Date.now() };
+        if (r.returnValue) { sleepSet = { v: mins, at: Date.now() }; toast(sleepMsg(mins)); }
         send(res, 200, r);
       });
     });
