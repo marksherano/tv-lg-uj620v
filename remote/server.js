@@ -39,13 +39,40 @@ function send(res, code, obj) {
 var share = require('./share.js')(luna, send);
 var stats = require('./stats.js')(luna, send);
 
+// Energy saving (picture) and sleep timer (time) are the firmware's own settings, the same
+// ones the TV menu writes; tvpowerd turns the TV off when the sleep timer runs out.
+var ENERGY = ['off', 'min', 'med', 'max'];
+var SLEEP = ['off', '10', '20', '30', '60', '90', '120', '180', '240'];
+var sleepSet = null; // { v: '30', at: ms } when the timer was set from here, to show what is left
+
+function getSetting(category, key, cb) {
+  luna('luna://com.webos.settingsservice/getSystemSettings', { category: category, keys: [key] }, function (r) {
+    cb(r.settings ? r.settings[key] : undefined);
+  });
+}
+
+function setSetting(category, key, value, cb) {
+  var s = {}; s[key] = value;
+  luna('luna://com.webos.settingsservice/setSystemSettings', { category: category, settings: s }, cb);
+}
+
 function state(cb) {
   var out = {};
   luna('luna://com.webos.applicationManager/getForegroundAppInfo', {}, function (a) {
     out.app = a.appId || '';
     luna('luna://com.webos.audio/getVolume', {}, function (v) {
       out.volume = v.volume; out.muted = v.muted;
-      cb(out);
+      getSetting('picture', 'energySaving', function (e) {
+        out.energy = e;
+        getSetting('time', 'sleepTimer', function (t) {
+          out.sleep = t;
+          // remaining minutes, only if the timer still is the one set from here
+          if (t && t !== 'off' && sleepSet && sleepSet.v === t) {
+            out.sleepLeft = Math.max(0, Math.ceil((sleepSet.at + t * 60000 - Date.now()) / 60000));
+          }
+          cb(out);
+        });
+      });
     });
   });
 }
@@ -115,6 +142,25 @@ http.createServer(function (req, res) {
     }
     return luna('luna://com.webos.notification/createToast', { sourceId: 'webosbrew', message: txt },
       function (r) { send(res, 200, r); }, 'webosbrew');
+  }
+
+  if (p === '/api/energy') {
+    var e = String(q.v || '');
+    if (ENERGY.indexOf(e) < 0) return send(res, 400, { error: 'valor invàlid' });
+    return setSetting('picture', 'energySaving', e, function (r) { send(res, 200, r); });
+  }
+
+  if (p === '/api/sleep') {
+    var mins = String(q.m || '');
+    if (SLEEP.indexOf(mins) < 0) return send(res, 400, { error: 'valor invàlid' });
+    // off first, so choosing the same time again restarts the countdown
+    return setSetting('time', 'sleepTimer', 'off', function () {
+      if (mins === 'off') { sleepSet = null; return send(res, 200, { returnValue: true }); }
+      setSetting('time', 'sleepTimer', mins, function (r) {
+        if (r.returnValue) sleepSet = { v: mins, at: Date.now() };
+        send(res, 200, r);
+      });
+    });
   }
 
   if (p === '/api/state') return state(function (s) { send(res, 200, s); });

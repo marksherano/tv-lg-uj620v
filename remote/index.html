@@ -28,6 +28,8 @@
   .pad button { height: auto; font-size: 26px; }
   .pad .ok { background: #c8102e; font-size: 20px; font-weight: 700; border-radius: 50%; }
   .pad .ok:active { background: #e0284a; }
+  button.on { background: #2b4a7a; color: #fff; }
+  .sub { font-size: 13px; color: #8b93a1; margin: 4px 0 8px; }
   .red { background: #3a1d22; } .warn { background: #3a2f17; }
   h2 { font-size: 13px; font-weight: 600; color: #8b93a1; text-transform: uppercase; letter-spacing: 1px; margin: 22px 0 8px; }
   .vol { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: center; }
@@ -116,6 +118,27 @@
     <button id="scrOn" class="small">Pantalla on</button>
     <button id="power" class="small red">⏻ Apagar</button>
   </div>
+
+  <div class="sub">Estalvi d'energia (baixa la llum de fons)</div>
+  <div class="row r4">
+    <button data-energy="off" class="small">No</button>
+    <button data-energy="min" class="small">Mínim</button>
+    <button data-energy="med" class="small">Mitjà</button>
+    <button data-energy="max" class="small">Màxim</button>
+  </div>
+
+  <div class="sub">Temporitzador d'apagada: <span id="sleepSt">—</span></div>
+  <div class="row r4">
+    <button data-sleep="10" class="small">10 min</button>
+    <button data-sleep="20" class="small">20 min</button>
+    <button data-sleep="30" class="small">30 min</button>
+    <button data-sleep="60" class="small">1 h</button>
+    <button data-sleep="90" class="small">1 h 30</button>
+    <button data-sleep="120" class="small">2 h</button>
+    <button data-sleep="180" class="small">3 h</button>
+    <button data-sleep="240" class="small">4 h</button>
+  </div>
+  <div class="row"><button data-sleep="off" class="small warn">Cancel·la el temporitzador</button></div>
 </main>
 <script>
   var st = document.getElementById('st');
@@ -132,8 +155,20 @@
     fetch('/api/state').then(function (r) { return r.json(); }).then(function (s) {
       status(s.app ? s.app.replace(/^com\.webos\.app\./, '') : 'connectat');
       document.getElementById('vol').textContent = s.muted ? '🔇 silenci' : '🔈 ' + s.volume;
+      mark('data-energy', s.energy);
+      mark('data-sleep', s.sleep);
+      var on = s.sleep && s.sleep !== 'off';
+      document.getElementById('sleepSt').textContent = !on ? 'desactivat'
+        : s.sleepLeft != null ? 'apaga en ' + fmtMin(s.sleepLeft) : 'actiu (' + fmtMin(+s.sleep) + ')';
     }).catch(function () { status('Sense connexió amb la TV', true); });
   }
+
+  function mark(attr, v) {
+    document.querySelectorAll('[' + attr + ']').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute(attr) === v && v !== 'off');
+    });
+  }
+  function fmtMin(m) { return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + m % 60 + ' min' : ''); }
 
   // keys: hold to repeat (arrows / volume)
   var REPEAT = { UP: 1, DOWN: 1, LEFT: 1, RIGHT: 1, VOLUMEUP: 1, VOLUMEDOWN: 1 };
@@ -172,6 +207,13 @@
 
   document.getElementById('scrOff').addEventListener('click', function () { api('screen?on=0'); });
   document.getElementById('scrOn').addEventListener('click', function () { api('screen?on=1'); });
+  document.querySelectorAll('[data-energy]').forEach(function (b) {
+    b.addEventListener('click', function () { api('energy?v=' + b.getAttribute('data-energy')).then(refresh); });
+  });
+  document.querySelectorAll('[data-sleep]').forEach(function (b) {
+    b.addEventListener('click', function () { api('sleep?m=' + b.getAttribute('data-sleep')).then(refresh); });
+  });
+
   document.getElementById('power').addEventListener('click', function () {
     if (confirm('Apagar la TV? Des d\'aquí no la podràs tornar a encendre.')) api('key?k=POWER');
   });
