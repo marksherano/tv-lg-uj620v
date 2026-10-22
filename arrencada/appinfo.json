@@ -1,0 +1,16 @@
+{
+  "id": "cat.arrencada",
+  "version": "1.0.0",
+  "vendor": "Marc",
+  "type": "web",
+  "main": "index.html",
+  "title": "Arrencada",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#000000",
+  "iconColor": "#444444",
+  "resolution": "1920x1080",
+  "visible": false,
+  "supportGIP": true,
+  "disableBackHistoryAPI": true
+}

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Arrencada</title></head>
+<body style="margin:0;background:#000">
+<script>
+/* Launched by the TV at boot as the "last input" (see README). All the work is done by boot.sh,
+   started in the background as root so it survives `restart sam` from the init.d hooks. */
+(function () {
+  var b = new PalmServiceBridge();
+  b.onservicecallback = function () { setTimeout(function () { window.close(); }, 3000); };
+  b.call('luna://org.webosbrew.hbchannel.service/exec', JSON.stringify({
+    command: 'nohup sh /media/developer/apps/usr/palm/applications/cat.arrencada/boot.sh >/tmp/arrencada.log 2>&1 &'
+  }));
+})();
+</script>
+</body>
+</html>

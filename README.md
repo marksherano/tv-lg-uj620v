@@ -18,6 +18,7 @@ Apps i eines casolanes per a una **LG 49UJ620V** (2017, webOS 3.9) rootejada amb
 | [`cat3/`](cat3) | **3Cat Lite** — client no oficial de 3Cat per a TVs on l'app nova no és compatible: directes, guia de programació, últims vídeos, programes A–Z, cerca, subtítols, preferits i «Continuar veient». |
 | [`remote/`](remote) | **Comandament web** — servidor Node que corre a la TV (port 8080) amb una pàgina per al mòbil: fletxes, volum, apps, entrades, escriure text, missatges a la pantalla, pantalla off, estalvi d'energia i temporitzador d'apagada. Inclou **Envia a la TV** (`/envia`: fotos, vídeos i enllaços de YouTube/3Cat des del mòbil, també amb una drecera de l'iPhone) i **Estadístiques** (`/estadistiques`: temps d'ús per dia i per app). |
 | [`pantalla/`](pantalla) | **Pantalla** — app de la TV que mostra el que s'envia des del mòbil: fotos (passi automàtic) i vídeos (inclòs HEVC `.mov` de l'iPhone). |
+| [`arrencada/`](arrencada) | **Arrencada** — app invisible que la TV obre sola en engegar-se i que activa els serveis de Homebrew Channel (telnet, ssh, comandament…) sense haver d'obrir-lo. |
 | [`tvtool/`](tvtool) | Eines per a l'ordinador (Python): consola root per telnet, pujar fitxers, depurar apps per CDP, script de neteja (*debloat*). |
 | [`build/make_ipk.py`](build/make_ipk.py) | Empaqueta una carpeta d'app en un `.ipk` instal·lable. |
 
@@ -47,8 +48,30 @@ a la llista `com.webos.launcher.appordering:1` de db8 (com a `com.webos.surfacem
 ## Scripts d'arrencada
 
 Els scripts de `/var/lib/webosbrew/init.d/` s'executen quan corre l'script d'inici de Homebrew Channel.
-En aquesta TV **això només passa en obrir l'app Homebrew Channel** després d'una aturada completa
-(amb «Encesa ràpida» activada, sobreviu a les apagades amb el comandament).
+En aquesta TV l'script no s'executa sol en engegar-se, i ho fa l'app **Arrencada** (o obrir a mà
+Homebrew Channel). Amb «Encesa ràpida» activada, tot sobreviu a les apagades amb el comandament.
+
+**Arrencada** (`cat.arrencada`) fa servir el mateix truc que
+[webosbrew-autostart](https://github.com/webosbrew/webosbrew-autostart), sense tocar res del sistema:
+
+- Està registrada com a «app d'entrada» (`com.webos.service.eim/addDevice`) i és l'última entrada
+  desada a `/var/lib/eim`, així que la TV l'obre en engegar-se.
+- En obrir-se llança `boot.sh` com a root: munta una còpia de `/var/lib/eim` a sobre (l'original no
+  canvia mai més), s'amaga de la llista d'entrades, torna a l'última entrada real (o la TV) i crida
+  `org.webosbrew.hbchannel.service/autostart`, que és el que fa l'app de Homebrew Channel.
+- Si `restart sam` (de `debloat`) tanca l'app que s'havia obert, la torna a obrir. El registre queda a `/tmp/arrencada.log`.
+
+Instal·lació (un cop):
+
+```bash
+python build/make_ipk.py arrencada build/arrencada.ipk
+MSYS_NO_PATHCONV=1 python tvtool/push.py build/arrencada.ipk /tmp/app.ipk
+python tvtool/tsh.py 'luna-send -w 20000 -i luna://com.webos.appInstallService/dev/install "{\"id\":\"cat.arrencada\",\"ipkUrl\":\"/tmp/app.ipk\",\"subscribe\":true}"' 30
+python tvtool/tsh.py 'cp -a /var/lib/eim /var/lib/webosbrew/eim.backup; luna-send -n 1 luna://com.webos.service.eim/addDevice "{\"appId\":\"cat.arrencada\",\"pigImage\":\"\",\"mvpdIcon\":\"\"}"'
+```
+
+Per treure-la: `umount /var/lib/eim; cp -a /var/lib/webosbrew/eim.backup/. /var/lib/eim/; rm -rf /var/lib/webosbrew/eim`,
+desinstal·lar `cat.arrencada` i reiniciar.
 
 | Fitxer | Instal·lat a la TV com a |
 |---|---|
