@@ -44,6 +44,8 @@ var stats = require('./stats.js')(luna, send);
 var ENERGY = ['off', 'min', 'med', 'max'];
 var SLEEP = ['off', '10', '20', '30', '60', '90', '120', '180', '240'];
 var sleepSet = null; // { v: '30', at: ms } when the timer was set from here, to show what is left
+// Any other time (minutes or a clock time) uses our own timer, which presses POWER when it ends.
+var custom = null;   // { end: ms, warn: timeout, off: timeout }
 
 function toast(msg) {
   luna('luna://com.webos.notification/createToast', { sourceId: 'webosbrew', message: msg }, function (r) {
@@ -51,11 +53,42 @@ function toast(msg) {
   }, 'webosbrew');
 }
 
-function sleepMsg(mins) {
-  var m = +mins, end = new Date(Date.now() + m * 60000);
+function hhmm(ms) {
+  var d = new Date(ms);
+  return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+}
+
+function sleepMsg(ms) {
+  var m = Math.round(ms / 60000);
   var dur = m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + m % 60 + ' min' : '');
-  var hh = ('0' + end.getHours()).slice(-2) + ':' + ('0' + end.getMinutes()).slice(-2);
-  return "⏻ La TV s'apagarà d'aquí a " + dur + ' (a les ' + hh + ')';
+  return "⏻ La TV s'apagarà d'aquí a " + dur + ' (a les ' + hhmm(Date.now() + ms) + ')';
+}
+
+function cancelCustom() {
+  if (custom) { clearTimeout(custom.warn); clearTimeout(custom.off); custom = null; }
+}
+
+function startCustom(ms) {
+  cancelCustom();
+  var c = custom = { end: Date.now() + ms };
+  if (ms > 90000) c.warn = setTimeout(function () { toast("⏻ La TV s'apagarà d'aquí a 1 minut"); }, ms - 60000);
+  c.off = setTimeout(function () {
+    custom = null;
+    // POWER toggles: only press it if the TV is still on (it may have been turned off by hand)
+    luna('luna://com.webos.service.tvpower/power/getPowerState', {}, function (r) {
+      if (['Active', 'Screen Off', 'Screen Saver'].indexOf(r.state) < 0) return;
+      luna('luna://com.webos.service.networkinput/sendSpecialKey', { key: 'POWER' }, function () {});
+    });
+  }, ms);
+}
+
+// "23:15" -> ms until the next time the clock shows it (today or tomorrow)
+function msUntil(hm) {
+  var m = /^(\d{1,2}):(\d{2})$/.exec(hm);
+  if (!m || +m[1] > 23 || +m[2] > 59) return 0;
+  var now = new Date(), t = new Date(now.getFullYear(), now.getMonth(), now.getDate(), +m[1], +m[2]);
+  if (t <= now) t.setDate(t.getDate() + 1);
+  return t - now;
 }
 
 function getSetting(category, key, cb) {
@@ -80,8 +113,12 @@ function state(cb) {
         getSetting('time', 'sleepTimer', function (t) {
           out.sleep = t;
           // remaining minutes, only if the timer still is the one set from here
-          if (t && t !== 'off' && sleepSet && sleepSet.v === t) {
-            out.sleepLeft = Math.max(0, Math.ceil((sleepSet.at + t * 60000 - Date.now()) / 60000));
+          var end = custom ? custom.end
+            : t && t !== 'off' && sleepSet && sleepSet.v === t ? sleepSet.at + t * 60000 : 0;
+          if (custom) out.sleep = 'custom';
+          if (end) {
+            out.sleepLeft = Math.max(0, Math.ceil((end - Date.now()) / 60000));
+            out.sleepAt = hhmm(end);
           }
           cb(out);
         });
@@ -163,17 +200,26 @@ http.createServer(function (req, res) {
     return setSetting('picture', 'energySaving', e, function (r) { send(res, 200, r); });
   }
 
+  // ?m=<minutes> (firmware values use the TV's own timer, others our own) | ?at=HH:MM | ?m=off
   if (p === '/api/sleep') {
-    var mins = String(q.m || '');
-    if (SLEEP.indexOf(mins) < 0) return send(res, 400, { error: 'valor invàlid' });
+    var mins = String(q.m || ''), ms = 0;
+    if (q.at) ms = msUntil(String(q.at));
+    else if (SLEEP.indexOf(mins) < 0 && /^\d{1,3}$/.test(mins) && +mins >= 1 && +mins <= 720) ms = mins * 60000;
+    if (SLEEP.indexOf(mins) < 0 && !ms) return send(res, 400, { error: 'valor invàlid' });
     // off first, so choosing the same time again restarts the countdown
+    cancelCustom();
     return setSetting('time', 'sleepTimer', 'off', function () {
+      sleepSet = null;
+      if (ms) {
+        startCustom(ms); toast(sleepMsg(ms));
+        return send(res, 200, { returnValue: true });
+      }
       if (mins === 'off') {
-        sleepSet = null; toast("⏻ Temporitzador d'apagada cancel·lat");
+        toast("⏻ Temporitzador d'apagada cancel·lat");
         return send(res, 200, { returnValue: true });
       }
       setSetting('time', 'sleepTimer', mins, function (r) {
-        if (r.returnValue) { sleepSet = { v: mins, at: Date.now() }; toast(sleepMsg(mins)); }
+        if (r.returnValue) { sleepSet = { v: mins, at: Date.now() }; toast(sleepMsg(mins * 60000)); }
         send(res, 200, r);
       });
     });

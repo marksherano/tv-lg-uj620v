@@ -138,6 +138,10 @@
     <button data-sleep="180" class="small">3 h</button>
     <button data-sleep="240" class="small">4 h</button>
   </div>
+  <div class="txt" style="margin-bottom:10px">
+    <input id="sl" type="text" inputmode="decimal" placeholder="Minuts (45) o hora (23:15)" enterkeyhint="done">
+    <button id="slGo" class="small">Programa</button>
+  </div>
   <div class="row"><button data-sleep="off" class="small warn">Cancel·la el temporitzador</button></div>
 </main>
 <script>
@@ -159,7 +163,8 @@
       mark('data-sleep', s.sleep);
       var on = s.sleep && s.sleep !== 'off';
       document.getElementById('sleepSt').textContent = !on ? 'desactivat'
-        : s.sleepLeft != null ? 'apaga en ' + fmtMin(s.sleepLeft) : 'actiu (' + fmtMin(+s.sleep) + ')';
+        : s.sleepLeft != null ? 'a les ' + s.sleepAt + " (d'aquí a " + fmtMin(s.sleepLeft) + ')'
+        : 'actiu (' + fmtMin(+s.sleep) + ')';
     }).catch(function () { status('Sense connexió amb la TV', true); });
   }
 
@@ -213,6 +218,18 @@
   document.querySelectorAll('[data-sleep]').forEach(function (b) {
     b.addEventListener('click', function () { api('sleep?m=' + b.getAttribute('data-sleep')).then(refresh); });
   });
+
+  // custom time: "45" = minutes, "23:15" (or 23.15 / 23h15) = clock time
+  var sl = document.getElementById('sl');
+  function sleepCustom() {
+    var v = sl.value.trim(), hm = /^(\d{1,2})[:.h](\d{2})$/.exec(v), q;
+    if (hm) q = 'at=' + hm[1] + ':' + hm[2];
+    else if (/^\d{1,3}$/.test(v) && +v >= 1 && +v <= 720) q = 'm=' + +v;
+    else { status('Posa minuts (1–720) o una hora com 23:15', true); sl.focus(); return; }
+    api('sleep?' + q).then(function (j) { if (j && j.returnValue) { sl.value = ''; sl.blur(); } refresh(); });
+  }
+  document.getElementById('slGo').addEventListener('click', sleepCustom);
+  sl.addEventListener('keydown', function (e) { if (e.key === 'Enter') sleepCustom(); });
 
   document.getElementById('power').addEventListener('click', function () {
     if (confirm('Apagar la TV? Des d\'aquí no la podràs tornar a encendre.')) api('key?k=POWER');
