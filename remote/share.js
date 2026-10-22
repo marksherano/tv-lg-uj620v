@@ -102,9 +102,23 @@ module.exports = function (luna, send) {
     var u = String(q.u || '').trim(), m;
     if (!/^https?:\/\//i.test(u)) return send(res, 400, { error: 'enllaç no vàlid' });
     if ((m = /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/))([A-Za-z0-9_-]{11})/.exec(u))) {
-      return luna('luna://com.webos.applicationManager/launch',
-        { id: 'youtube.leanback.v4', params: { contentTarget: 'https://www.youtube.com/tv?v=' + m[1] } },
-        function (r) { send(res, 200, r); });
+      // the app's own deeplinkingParams format ("v=$CONTENTID"); a full URL just opens the home screen.
+      // A running YouTube ignores it (and so does DIAL), so it is closed first; relaunched sooner than
+      // ~8 s it resumes the old instance on its home screen. With more than one account it asks who
+      // is watching, then plays the video.
+      var yt = m[1];
+      var go = function () {
+        luna('luna://com.webos.applicationManager/launch',
+          { id: 'youtube.leanback.v4', params: { contentTarget: 'v=' + yt } }, function () {});
+      };
+      return luna('luna://com.webos.applicationManager/running', {}, function (r) {
+        var on = (r.running || []).some(function (a) { return a.id === 'youtube.leanback.v4'; });
+        send(res, 200, { returnValue: true });
+        if (!on) return go();
+        luna('luna://com.webos.applicationManager/closeByAppId', { id: 'youtube.leanback.v4' }, function () {
+          setTimeout(go, 8000);
+        });
+      });
     }
     if ((m = /3cat\.cat\/.*\/video\/(\d+)/.exec(u) || /ccma\.cat\/.*\/video\/(\d+)/.exec(u))) {
       return luna('luna://com.webos.applicationManager/launch', { id: 'cat.tresc.lite', params: { play: m[1] } },
