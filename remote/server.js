@@ -1,18 +1,20 @@
 /* Web remote for the LG TV. Runs on the TV itself (node 0.12, ES5) as root.
    GET /            -> remote page (also /envia and /estadistiques)
    GET /api/...     -> JSON; every action is whitelisted and run with execFile (no shell).
-   Uploads/sharing live in share.js, usage statistics in stats.js. */
+   Uploads/sharing live in share.js, usage statistics in stats.js, the phone keyboard in kbd.js,
+   the TV health page in status.js. */
 var http = require('http');
 var fs = require('fs');
 var path = require('path');
 var execFile = require('child_process').execFile;
 
 var PORT = 8080;
-var PAGES = { '/': 'index.html', '/index.html': 'index.html', '/envia': 'envia.html', '/estadistiques': 'stats.html' };
+var PAGES = { '/': 'index.html', '/index.html': 'index.html', '/envia': 'envia.html', '/estadistiques': 'stats.html',
+  '/estat': 'estat.html' };
 // static files besides the page (icons for the browser tab / phone home screen)
 var STATIC = {
   '/icon-32.png': 'image/png', '/icon-180.png': 'image/png', '/icon-192.png': 'image/png',
-  '/icon-512.png': 'image/png', '/manifest.json': 'application/manifest+json'
+  '/icon-512.png': 'image/png', '/manifest.json': 'application/manifest+json', '/sw.js': 'application/javascript'
 };
 
 var KEYS = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'ENTER', 'BACK', 'HOME', 'EXIT', 'MENU', 'INFO',
@@ -38,6 +40,8 @@ function send(res, code, obj) {
 
 var share = require('./share.js')(luna, send);
 var stats = require('./stats.js')(luna, send);
+var kbd = require('./kbd.js')(luna, send);
+var status = require('./status.js')(luna, send);
 
 // Energy saving (picture) and sleep timer (time) are the firmware's own settings, the same
 // ones the TV menu writes; tvpowerd turns the TV off when the sleep timer runs out.
@@ -141,18 +145,22 @@ http.createServer(function (req, res) {
   if (STATIC[p]) {
     return fs.readFile(path.join(__dirname, p.slice(1)), function (err, data) {
       if (err) { res.writeHead(404); return res.end(); }
-      res.writeHead(200, { 'Content-Type': STATIC[p], 'Cache-Control': 'max-age=86400' });
+      res.writeHead(200, { 'Content-Type': STATIC[p], 'Cache-Control': /\.png$/.test(p) ? 'max-age=86400' : 'no-cache' });
       res.end(data);
     });
   }
 
   if (p.indexOf('/share/') === 0) return share.serve(req, res, p.slice(7));
   if (p === '/api/upload') return share.upload(req, res, q);
+  if (p === '/api/compartir') return share.compartir(req, res, q);
+  // the Android share target is handled by sw.js; reaching the server means it is not running
+  if (p === '/compartir') { res.writeHead(303, { Location: '/envia?compartit=sw' }); return res.end(); }
   if (p === '/api/share/show') return share.show(q, res);
   if (p === '/api/share/list') return share.list(res);
   if (p === '/api/share/delete') return share.remove(q, res);
   if (p === '/api/share/url') return share.url(q, res);
   if (p === '/api/stats') return stats.api(res);
+  if (p === '/api/status') return status.api(res);
 
   if (p === '/api/key') {
     var k = String(q.k || '').toUpperCase();
@@ -166,13 +174,8 @@ http.createServer(function (req, res) {
     return luna('luna://com.webos.applicationManager/launch', { id: id }, function (r) { send(res, 200, r); });
   }
 
-  if (p === '/api/text') {
-    var t = String(q.t || '').slice(0, 200);
-    return luna('luna://com.webos.service.ime/insertText', { text: t, replace: q.replace === '1' }, function (r) {
-      if (q.enter !== '1') return send(res, 200, r);
-      luna('luna://com.webos.service.ime/sendEnterKey', {}, function (r2) { send(res, 200, r2); });
-    });
-  }
+  if (p === '/api/text') return kbd.text(q, res);
+  if (p === '/api/kb') return kbd.poll(q, res);
 
   if (p === '/api/screen') {
     var m = q.on === '1' ? 'turnOnScreen' : 'turnOffScreen';

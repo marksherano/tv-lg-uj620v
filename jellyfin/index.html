@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Jellyfin Lite</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="setup" class="setup hidden">
+  <div class="slogo">Jellyfin <span>Lite</span></div>
+  <div class="sbox">
+    <label>Adreça del servidor</label>
+    <input id="sServer" class="f" type="url" placeholder="192.168.1.20:8096">
+    <div class="sbtns">
+      <div class="btn f" data-act="qc">Quick Connect</div>
+      <div class="btn f" data-act="pw">Usuari i contrasenya</div>
+    </div>
+    <div id="sPw" class="hidden">
+      <label>Usuari</label>
+      <input id="sUser" class="f" type="text" autocapitalize="off">
+      <label>Contrasenya</label>
+      <input id="sPass" class="f" type="password">
+      <div class="sbtns"><div class="btn f" data-act="login">Entra</div></div>
+    </div>
+    <div id="sCode" class="scode hidden"></div>
+    <div id="sMsg" class="smsg"></div>
+    <div class="shelp">▲ ▼ per moure't · OK per escriure o triar. Pots escriure amb el teclat del mòbil (Comandament → Teclat).</div>
+  </div>
+</div>
+
+<div id="browse" class="hidden">
+  <div class="top">
+    <div class="logo">Jellyfin <span>Lite</span></div>
+    <div id="tabs" class="tabs"></div>
+    <div id="clock" class="clock"></div>
+  </div>
+  <div id="sub" class="sub"></div>
+  <div id="search" class="search hidden"><input id="q" type="text" placeholder="Cerca pel·lícules, sèries o capítols…"></div>
+  <div id="viewport" class="viewport"><div id="grid" class="grid"></div></div>
+  <div id="msg" class="msg"></div>
+</div>
+<div id="toast" class="toast hidden"></div>
+<div id="player" class="player hidden">
+  <video id="video" preload="auto"></video>
+  <div id="osd" class="osd">
+    <div id="osdTitle" class="osd-title"></div>
+    <div id="osdSub" class="osd-sub"></div>
+    <div class="osd-bar"><div id="osdFill" class="osd-fill"></div></div>
+    <div class="osd-row"><span id="osdTime"></span><span id="osdState"></span><span id="osdDur"></span></div>
+    <div class="osd-help">OK pausa · ◀ ▶ 10 s (mantén: 60 s) · ▲ subtítols · ▼ àudio · ENRERE sortir</div>
+  </div>
+  <div id="subs" class="subs"></div>
+  <div id="spinner" class="spinner">Carregant…</div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

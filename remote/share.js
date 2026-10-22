@@ -54,36 +54,86 @@ module.exports = function (luna, send) {
   cleanup(0, function () {});
   setInterval(function () { cleanup(0, function () {}); }, 3600000);
 
-  function showItems(names, res) {
+  function showItems(names, res, start) {
     var items = names.map(function (f) {
       return { url: BASE + encodeURIComponent(f), type: kind(f), name: f.replace(/^\d+-/, '') };
     });
-    luna('luna://com.webos.applicationManager/launch', { id: VIEWER, params: { items: items, start: 0 } },
+    luna('luna://com.webos.applicationManager/launch', { id: VIEWER, params: { items: items, start: start || 0 } },
       function (r) { send(res, 200, r); });
   }
 
+  // The iPhone shortcut sends shared photos one request at a time: files that arrive less than two
+  // minutes apart join the same slideshow, which opens on the newest one.
+  var batch = { names: [], at: 0 };
+  function showBatch(file, res) {
+    if (Date.now() - batch.at > 120000) batch.names = [];
+    batch.names.push(file); batch.at = Date.now();
+    showItems(batch.names.slice(), res, batch.names.length - 1);
+  }
+
+  function upload(req, res, q) {
+    if (req.method !== 'POST') return send(res, 405, { error: 'cal POST' });
+    var mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    var base = path.basename(String(q.name || 'fitxer')).replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80);
+    var ext = path.extname(base).toLowerCase();
+    if (!TYPES[ext]) { ext = EXT_BY_MIME[mime]; base = base.replace(/\.[^.]*$/, '') + (ext || ''); }
+    if (!ext && /hei[cf]/.test(mime + base.toLowerCase())) {
+      return send(res, 415, { error: "la TV no obre fotos HEIC: a l'iPhone, Configuració > Càmera > Formats > Més compatible" });
+    }
+    if (!ext) return send(res, 415, { error: 'format no compatible (' + (mime || 'desconegut') + ')' });
+    var size = +req.headers['content-length'] || 0;
+    cleanup(size, function (ok) {
+      if (!ok) return send(res, 507, { error: 'no hi ha prou espai a la TV' });
+      var file = Date.now() + '-' + base, tmp = path.join(DIR, '.' + file);
+      var out = fs.createWriteStream(tmp);
+      req.pipe(out);
+      out.on('finish', function () {
+        fs.renameSync(tmp, path.join(DIR, file));
+        if (q.batch === '1') return showBatch(file, res);
+        if (q.show === '1') return showItems([file], res);
+        send(res, 200, { returnValue: true, file: file, type: kind(file) });
+      });
+      out.on('error', function (e) { try { fs.unlinkSync(tmp); } catch (x) {} send(res, 500, { error: e.message }); });
+      req.on('aborted', function () { out.destroy(); try { fs.unlinkSync(tmp); } catch (x) {} });
+    });
+  }
+
+  function openUrl(q, res) {
+    var u = String(q.u || '').trim(), m;
+    if (!/^https?:\/\//i.test(u)) return send(res, 400, { error: 'enllaç no vàlid' });
+    if ((m = /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/))([A-Za-z0-9_-]{11})/.exec(u))) {
+      return luna('luna://com.webos.applicationManager/launch',
+        { id: 'youtube.leanback.v4', params: { contentTarget: 'https://www.youtube.com/tv?v=' + m[1] } },
+        function (r) { send(res, 200, r); });
+    }
+    if ((m = /3cat\.cat\/.*\/video\/(\d+)/.exec(u) || /ccma\.cat\/.*\/video\/(\d+)/.exec(u))) {
+      return luna('luna://com.webos.applicationManager/launch', { id: 'cat.tresc.lite', params: { play: m[1] } },
+        function (r) { send(res, 200, r); });
+    }
+    var ext = path.extname(u.split(/[?#]/)[0]).toLowerCase();
+    var type = /\.(mp4|m4v|mov|webm|mkv|m3u8)$/.test(ext) ? 'video' : (/\.(jpe?g|png|gif|webp)$/.test(ext) ? 'photo' : null);
+    if (!type) return resolveAndShow(u, res);
+    show(u, type, path.basename(u.split(/[?#]/)[0]), res);
+  }
+
   return {
-    // POST /api/upload?name=IMG_0001.jpg[&show=1]   body = raw file
-    upload: function (req, res, q) {
+    // POST /api/upload?name=IMG_0001.jpg[&show=1|&batch=1]   body = raw file
+    upload: upload,
+
+    // POST /api/compartir[?name=…] from the iPhone shortcut (or anything else): the body is either a
+    // photo/video, or something with a link in it (plain text, JSON, a .webloc/.url, a Safari page)
+    compartir: function (req, res, q) {
       if (req.method !== 'POST') return send(res, 405, { error: 'cal POST' });
       var mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-      var base = path.basename(String(q.name || 'fitxer')).replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80);
-      var ext = path.extname(base).toLowerCase();
-      if (!TYPES[ext]) { ext = EXT_BY_MIME[mime]; base = base.replace(/\.[^.]*$/, '') + (ext || ''); }
-      if (!ext) return send(res, 415, { error: 'format no compatible (' + (mime || 'desconegut') + ')' });
-      var size = +req.headers['content-length'] || 0;
-      cleanup(size, function (ok) {
-        if (!ok) return send(res, 507, { error: 'no hi ha prou espai a la TV' });
-        var file = Date.now() + '-' + base, tmp = path.join(DIR, '.' + file);
-        var out = fs.createWriteStream(tmp);
-        req.pipe(out);
-        out.on('finish', function () {
-          fs.renameSync(tmp, path.join(DIR, file));
-          if (q.show === '1') return showItems([file], res);
-          send(res, 200, { returnValue: true, file: file, type: kind(file) });
-        });
-        out.on('error', function (e) { try { fs.unlinkSync(tmp); } catch (x) {} send(res, 500, { error: e.message }); });
-        req.on('aborted', function () { out.destroy(); try { fs.unlinkSync(tmp); } catch (x) {} });
+      var ext = path.extname(String(q.name || '')).toLowerCase();
+      if (/^(image|video)\//.test(mime) || TYPES[ext]) return upload(req, res, { name: q.name, batch: '1' });
+      var body = '', big = false;
+      req.setEncoding('utf8');
+      req.on('data', function (c) { if (body.length < 262144) body += c; else big = true; });
+      req.on('end', function () {
+        var m = /https?:\/\/[^\s"'<>\\\x00-\x1f]+/.exec(body.replace(/\\\//g, '/'));
+        if (!m) return send(res, 415, { error: big ? 'fitxer no compatible' : "no hi ha cap foto, vídeo ni enllaç" });
+        openUrl({ u: m[0] }, res);
       });
     },
 
@@ -135,23 +185,7 @@ module.exports = function (luna, send) {
     },
 
     // GET /api/share/url?u=<link>  — YouTube, 3Cat, a direct photo/video URL or any page yt-dlp knows
-    url: function (q, res) {
-      var u = String(q.u || '').trim(), m;
-      if (!/^https?:\/\//i.test(u)) return send(res, 400, { error: 'enllaç no vàlid' });
-      if ((m = /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/))([A-Za-z0-9_-]{11})/.exec(u))) {
-        return luna('luna://com.webos.applicationManager/launch',
-          { id: 'youtube.leanback.v4', params: { contentTarget: 'https://www.youtube.com/tv?v=' + m[1] } },
-          function (r) { send(res, 200, r); });
-      }
-      if ((m = /3cat\.cat\/.*\/video\/(\d+)/.exec(u) || /ccma\.cat\/.*\/video\/(\d+)/.exec(u))) {
-        return luna('luna://com.webos.applicationManager/launch', { id: 'cat.tresc.lite', params: { play: m[1] } },
-          function (r) { send(res, 200, r); });
-      }
-      var ext = path.extname(u.split(/[?#]/)[0]).toLowerCase();
-      var type = /\.(mp4|m4v|mov|webm|mkv|m3u8)$/.test(ext) ? 'video' : (/\.(jpe?g|png|gif|webp)$/.test(ext) ? 'photo' : null);
-      if (!type) return resolveAndShow(u, res);
-      show(u, type, path.basename(u.split(/[?#]/)[0]), res);
-    }
+    url: openUrl
   };
 
   function show(url, type, name, res) {

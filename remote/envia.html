@@ -46,6 +46,9 @@
   summary { cursor: pointer; font-weight: 600; color: #eef0f3; }
   code { background: #23272f; padding: 1px 6px; border-radius: 6px; font-size: 13px; word-break: break-all; }
   .muted { color: #8b93a1; font-size: 13px; }
+  details + details { margin-top: 10px; }
+  .chk { margin-top: 8px; font-size: 14px; }
+  .chk.ok { color: #6bdc8c; } .chk.err { color: #ffb36b; }
 </style>
 </head>
 <body>
@@ -67,27 +70,40 @@
   <button id="all">▶ Passi de totes les fotos</button>
   <p class="muted">Toca una miniatura per tornar-la a mostrar. Els fitxers s'esborren sols al cap de 7 dies.</p>
 
-  <h2>Des del menú Compartir de l'iPhone</h2>
+  <h2>Des del menú Compartir del mòbil</h2>
+  <details id="dAndroid">
+    <summary>Android: «Comandament» al menú Compartir</summary>
+    <ol>
+      <li>A Chrome, obre <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> (copia-ho i enganxa-ho a la barra d'adreces),
+        escriu-hi <code class="origin"></code>, posa-ho a <b>Enabled</b> i toca <b>Relaunch</b>.
+        <span class="muted">Cal perquè la TV no té HTTPS, i sense això Chrome no deixa instal·lar la pàgina.</span></li>
+      <li>Torna a aquesta pàgina i, al menú <b>⋮</b>, tria <b>Instal·la l'aplicació</b> (o <b>Afegeix a la pantalla d'inici → Instal·la</b>).</li>
+      <li>Ara, a Galeria, YouTube, el navegador o qualsevol app: <b>Compartir → Comandament</b>. Les fotos i els vídeos es pugen aquí amb la barra de progrés; els enllaços s'obren directament.</li>
+    </ol>
+    <div class="chk" id="swChk"></div>
+  </details>
   <details>
-    <summary>Crear la drecera «Envia a la TV»</summary>
+    <summary>iPhone: drecera «Envia a la TV»</summary>
     <ol>
       <li>Obre l'app <b>Dreceres</b> i crea'n una de nova amb el nom <b>Envia a la TV</b>.</li>
-      <li>A la informació de la drecera (ⓘ), activa <b>Mostrar al full de compartir</b> i deixa només <b>Imatges</b> i <b>Fitxers multimèdia</b>.</li>
+      <li>A la informació de la drecera (ⓘ), activa <b>Mostrar al full de compartir</b> i deixa-hi <b>Imatges</b>, <b>Fitxers multimèdia</b>, <b>URL</b>, <b>Pàgines web del Safari</b> i <b>Text</b>.</li>
       <li>Afegeix l'acció <b>Repetir amb cada</b> sobre l'<b>Entrada de la drecera</b>.</li>
       <li>Dins el bucle, afegeix <b>Obtenir contingut de l'URL</b> amb:
         <ul>
           <li>URL: <code id="sc"></code></li>
           <li>Mètode: <b>POST</b> · Cos de la sol·licitud: <b>Fitxer</b> → <b>Element repetit</b></li>
         </ul></li>
-      <li>Desa-la. Ara, a Fotos → Compartir → <b>Envia a la TV</b>, la foto o el vídeo sortirà a la tele.</li>
+      <li>Desa-la. Ara, a Fotos, Safari o YouTube → Compartir → <b>Envia a la TV</b>. Si n'envies unes quantes, surten totes al mateix passi.</li>
     </ol>
-    <p class="muted">Funciona quan el mòbil és a la wifi de casa i el comandament de la TV està en marxa.</p>
+    <p class="muted">La TV no obre fotos HEIC: si l'iPhone les fa així, a Configuració → Càmera → Formats, tria <b>Més compatible</b>.</p>
   </details>
+  <p class="muted">Funciona quan el mòbil és a la wifi de casa i el comandament de la TV està en marxa.</p>
 </main>
 <script>
   var st = document.getElementById('st');
   function status(t, cls) { st.textContent = t; st.className = cls || ''; }
-  document.getElementById('sc').textContent = location.origin + '/api/upload?show=1';
+  document.getElementById('sc').textContent = location.origin + '/api/compartir';
+  document.querySelectorAll('.origin').forEach(function (e) { e.textContent = location.origin; });
 
   function upload(file, i, n) {
     return new Promise(function (ok, ko) {
@@ -170,6 +186,39 @@
     status(r.returnValue ? 'Passi de ' + photos.length + ' fotos a la TV ✓' : 'Error', r.returnValue ? 'ok' : 'err');
   });
   refresh();
+
+  // Android share target (manifest + sw.js): files wait in Cache Storage, links come as ?u=
+  var swChk = document.getElementById('swChk');
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('/sw.js').then(function () {
+      swChk.textContent = "✓ Chrome ja tracta la TV com a segura: ja la pots instal·lar (pas 2)."; swChk.className = 'chk ok';
+    }).catch(function (e) { swChk.textContent = '✗ ' + e.message; swChk.className = 'chk err'; });
+  } else {
+    swChk.textContent = '✗ Aquest navegador encara no tracta la TV com a segura (pas 1).'; swChk.className = 'chk err';
+  }
+
+  async function shared() {
+    var q = new URLSearchParams(location.search);
+    if (!q.has('compartit') && !q.has('u')) return;
+    history.replaceState(null, '', '/envia');
+    if (q.get('u')) { document.getElementById('u').value = q.get('u'); return openUrl(); }
+    if (q.get('compartit') === 'sw') {
+      document.getElementById('dAndroid').open = true;
+      return status("El menú Compartir no ha pogut fer servir l'app: torna a fer el pas 2.", 'err');
+    }
+    var files = [];
+    try {
+      var c = await caches.open('compartit'), keys = await c.keys();
+      for (var i = 0; i < keys.length; i++) {
+        var r = await c.match(keys[i]), blob = await r.blob();
+        files.push(new File([blob], decodeURIComponent(r.headers.get('X-Name') || 'fitxer'), { type: blob.type }));
+      }
+      await caches.delete('compartit');
+    } catch (e) { /* no cache */ }
+    if (!files.length) return status('No ha arribat cap foto, vídeo ni enllaç que la TV pugui obrir.', 'err');
+    sendFiles(files);
+  }
+  shared();
 </script>
 </body>
 </html>

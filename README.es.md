@@ -16,7 +16,8 @@ Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada 
 |---|---|
 | [`brillo/`](brillo) | **Brillo+** — control de retroiluminación, brillo, contraste, color, ahorro de energía… con perfiles (Día, Tarde, Noche, Cine, 3 personales) y programación horaria. |
 | [`cat3/`](cat3) | **3Cat Lite** — cliente no oficial de 3Cat para TVs en las que la app nueva no es compatible: directos, guía de programación, últimos vídeos, programas A–Z, búsqueda, subtítulos, favoritos y «Seguir viendo». |
-| [`remote/`](remote) | **Mando web** — servidor Node que corre en la TV (puerto 8080) con una página para el móvil: flechas, volumen, apps, entradas, escribir texto, mensajes en pantalla, apagar pantalla, ahorro de energía y temporizador de apagado. Incluye **Enviar a la TV** (`/envia`: fotos, vídeos y enlaces de YouTube, 3Cat, RTVE, Atresplayer… desde el móvil, también con un atajo del iPhone) y **Estadísticas** (`/estadistiques`: tiempo de uso por día y por app). |
+| [`remote/`](remote) | **Mando web** — servidor Node que corre en la TV (puerto 8080) con una página para el móvil: flechas, volumen, apps, entradas, mensajes en pantalla, apagar pantalla, ahorro de energía y temporizador de apagado. **Teclado**: cuando la TV abre un campo de texto (navegador, Wi-Fi, Jellyfin Lite…) el móvil lo avisa y lo que escribes sale en la TV en directo. Incluye **Enviar a la TV** (`/envia`: fotos, vídeos y enlaces de YouTube, 3Cat, RTVE, Atresplayer… también desde el menú **Compartir** de Android y del iPhone), **Estadísticas** (`/estadistiques`: tiempo de uso por día y por app) y **Estado de la TV** (`/estat`: temperatura, memoria, disco, red, servicios en marcha, apps instaladas y registros de arranque). |
+| [`jellyfin/`](jellyfin) | **Jellyfin Lite** — cliente ligero de [Jellyfin](https://jellyfin.org): inicio con «Seguir viendo», «Siguientes capítulos» y novedades, una pestaña por biblioteca (A–Z, novedades, no vistos…), series por temporadas, ficha con sinopsis, búsqueda, subtítulos y cambio de audio. Entra con Quick Connect (un código en pantalla) o usuario y contraseña, y guarda la posición en el servidor. Reproduce directamente MP4/MOV (H.264, HEVC) y WebM; el resto (MKV…) lo convierte el servidor a HLS. |
 | [`pantalla/`](pantalla) | **Pantalla** — app de la TV que muestra lo que se envía desde el móvil: fotos (pase automático) y vídeos (incluido HEVC `.mov` del iPhone). |
 | [`arrencada/`](arrencada) | **Arrencada** — app invisible que la TV abre sola al encenderse y que activa los servicios de Homebrew Channel (telnet, ssh, mando…) sin tener que abrirlo. |
 | [`tvlinks/`](tvlinks) | **tvlinks** — servicio para un ordenador de casa siempre encendido (Linux) que, con yt-dlp, convierte enlaces de páginas de vídeo (RTVE, clips de Atresplayer, autonómicas, Vimeo…) en la dirección directa que la TV puede reproducir. El contenido con DRM no funciona. |
@@ -89,6 +90,16 @@ desinstalar `cat.arrencada` y reiniciar.
 | [`remote/remote-init`](remote/remote-init) | `/var/lib/webosbrew/init.d/remote` — arranca el mando web |
 
 Para deshacer cualquier cambio: borra el archivo correspondiente de `init.d` y reinicia la TV.
+
+## Compartir desde el móvil
+
+- **Android**: la página del mando es una PWA con `share_target`, y una vez instalada aparece como
+  «Comandament» en el menú Compartir (fotos, vídeos y enlaces). Como la TV no tiene HTTPS, antes hay
+  que añadir su dirección en `chrome://flags/#unsafely-treat-insecure-origin-as-secure` en Chrome. Los
+  pasos están en `/envia`.
+- **iPhone**: un atajo «Envia a la TV» que manda cada elemento compartido a `POST /api/compartir`.
+  El servidor acepta una foto, un vídeo o cualquier cosa que contenga un enlace, y las fotos que
+  llegan seguidas salen juntas en el mismo pase. Los pasos también están en `/envia`.
 
 ## Enlaces de vídeo con yt-dlp
 

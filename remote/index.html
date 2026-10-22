@@ -39,11 +39,18 @@
     color: #fff; padding: 0 14px; font-size: 16px; }
   .txt button { width: 80px; height: 50px; }
   .small { font-size: 14px; }
+  .kbbar { position: -webkit-sticky; position: sticky; top: 0; z-index: 9; background: #2f7df6; color: #fff; text-align: center;
+    padding: 14px 16px calc(14px + env(safe-area-inset-top, 0px)); font-size: 16px; font-weight: 600; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+  .hidden { display: none; }
+  .txt input.tvfocus { border-color: #2f7df6; box-shadow: 0 0 0 2px #2f7df655; }
+  #kbSt.on { color: #6bdc8c; }
   a.lnk { display: flex; align-items: center; justify-content: center; height: 50px; border-radius: 14px;
     background: #1d2a44; color: #cfe0ff; text-decoration: none; font-size: 15px; }
 </style>
 </head>
 <body>
+<div id="kbBar" class="kbbar hidden">⌨ La TV demana text · toca per escriure</div>
 <main>
   <header><h1>📺 Comandament</h1><div id="st">connectant…</div></header>
 
@@ -51,6 +58,7 @@
     <a class="lnk" href="/envia">📤 Envia a la TV</a>
     <a class="lnk" href="/estadistiques">📊 Estadístiques</a>
   </div>
+  <div class="row"><a class="lnk" href="/estat">🩺 Estat de la TV</a></div>
 
   <div class="row r3">
     <button data-k="BACK">↩ Enrere</button>
@@ -77,8 +85,13 @@
     <button data-k="CHANNELDOWN" class="small">Canal −</button><button data-k="CHANNELUP" class="small">Canal +</button>
   </div>
 
-  <h2>Escriure a la TV</h2>
-  <div class="txt"><input id="t" type="text" placeholder="Text per a la cerca…" enterkeyhint="send"><button id="send">Envia</button></div>
+  <h2 id="kbH">Teclat</h2>
+  <div class="txt">
+    <input id="t" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      placeholder="El que escriguis surt a la TV" enterkeyhint="go">
+    <button id="tClr" class="small" style="width:56px">⌫</button><button id="send" class="small">Intro</button>
+  </div>
+  <div class="sub" id="kbSt">Obre un camp de text a la TV (navegador, Wi-Fi, Jellyfin Lite…) i escriu aquí. YouTube i Netflix fan servir un teclat propi i no ho reben.</div>
 
   <h2>Missatge a la pantalla</h2>
   <div class="txt"><input id="m" type="text" maxlength="300" placeholder="Ex.: El sopar és a taula!" enterkeyhint="send"></div>
@@ -191,10 +204,51 @@
     b.addEventListener('click', function () { api('launch?id=' + encodeURIComponent(b.getAttribute('data-app'))).then(function () { setTimeout(refresh, 1500); }); });
   });
 
-  var t = document.getElementById('t');
-  function sendText() { if (!t.value) return; api('text?t=' + encodeURIComponent(t.value) + '&enter=1'); t.value = ''; t.blur(); }
-  document.getElementById('send').addEventListener('click', sendText);
-  t.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendText(); });
+  // Keyboard: the input box is mirrored into the TV field as you type (insertText with replace),
+  // one request at a time so they never arrive out of order. /api/kb tells when the TV wants text.
+  var t = document.getElementById('t'), kbBar = document.getElementById('kbBar'), kbSt = document.getElementById('kbSt');
+  var kb = { v: -1, focus: false }, busy = false, again = false, kbLooping = false;
+  function mirror() {
+    if (busy) { again = true; return Promise.resolve(); }
+    busy = true; again = false;
+    return fetch('/api/text?replace=1&t=' + encodeURIComponent(t.value)).catch(function () {})
+      .then(function () { busy = false; if (again) return mirror(); });
+  }
+  t.addEventListener('input', mirror);
+  function enter() {
+    if (navigator.vibrate) navigator.vibrate(15);
+    (busy ? new Promise(function (ok) { var i = setInterval(function () { if (!busy) { clearInterval(i); ok(); } }, 50); }) : Promise.resolve())
+      .then(function () { return fetch('/api/text?enter=1'); })
+      .then(function () { t.value = ''; });
+  }
+  document.getElementById('send').addEventListener('click', enter);
+  t.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); enter(); } });
+  document.getElementById('tClr').addEventListener('click', function () { t.value = ''; mirror(); t.focus(); });
+  kbBar.addEventListener('click', function () {
+    t.focus(); t.scrollIntoView({ block: 'center' }); kbBar.classList.add('hidden');
+  });
+  t.addEventListener('focus', function () { kbBar.classList.add('hidden'); });
+  function showKb(k) {
+    var fresh = k.focus && (!kb.focus || k.v !== kb.v);
+    kb = k;
+    t.type = k.password ? 'password' : 'text';
+    t.classList.toggle('tvfocus', k.focus);
+    kbSt.classList.toggle('on', k.focus);
+    kbSt.textContent = k.focus ? (k.password ? '🔒 La TV demana una contrasenya: escriu-la aquí.' : '⌨ La TV té un camp de text obert: escriu aquí.')
+      : 'Obre un camp de text a la TV (navegador, Wi-Fi, Jellyfin Lite…) i escriu aquí. YouTube i Netflix fan servir un teclat propi i no ho reben.';
+    if (fresh) t.value = '';
+    kbBar.classList.toggle('hidden', !k.focus || document.activeElement === t);
+  }
+  function kbLoop() {
+    if (kbLooping) return;
+    if (document.hidden) return;
+    kbLooping = true;
+    fetch('/api/kb?v=' + kb.v).then(function (r) { return r.json(); }).then(function (k) {
+      kbLooping = false; showKb(k); kbLoop();
+    }).catch(function () { kbLooping = false; setTimeout(kbLoop, 3000); });
+  }
+  document.addEventListener('visibilitychange', kbLoop);
+  kbLoop();
 
   var m = document.getElementById('m');
   function sendMsg(text, mode) {
@@ -236,6 +290,8 @@
   });
 
   refresh(); setInterval(refresh, 5000);
+  // lets Android install the page and list it in the Share menu (see /envia)
+  if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(function () {});
 </script>
 </body>
 </html>

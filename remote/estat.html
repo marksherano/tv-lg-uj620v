@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111318">
+<title>Estat de la TV</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="manifest" href="/manifest.json">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #111318; color: #eef0f3; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 14px 16px 40px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  header a { color: #8b93a1; text-decoration: none; font-size: 15px; }
+  h1 { font-size: 20px; margin: 0; flex: 1; }
+  h2 { font-size: 13px; font-weight: 600; color: #8b93a1; text-transform: uppercase; letter-spacing: 1px; margin: 26px 0 10px; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .tile { background: #1f232b; border-radius: 14px; padding: 12px; }
+  .tile .v { font-size: 20px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .l { font-size: 12px; color: #8b93a1; margin-top: 2px; }
+  .tile.warn .v { color: #ffb36b; } .tile.bad .v { color: #ff7676; }
+  .meter { margin-bottom: 12px; font-size: 15px; }
+  .meter .top { display: flex; justify-content: space-between; margin-bottom: 5px; }
+  .meter .top span:last-child { color: #8b93a1; font-size: 14px; }
+  .meter .bar { height: 8px; background: #23272f; border-radius: 4px; overflow: hidden; }
+  .meter .bar div { height: 8px; background: #2f7df6; border-radius: 4px; }
+  .meter.warn .bar div { background: #e8a33c; } .meter.bad .bar div { background: #e04848; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td { padding: 7px 4px; border-bottom: 1px solid #23272f; }
+  td:last-child { text-align: right; color: #8b93a1; white-space: nowrap; }
+  .ok { color: #6bdc8c !important; } .ko { color: #ff7676 !important; } .na { color: #8b93a1 !important; }
+  pre { background: #181b21; border-radius: 12px; padding: 10px 12px; font-size: 11px; line-height: 1.45; color: #c9ced6;
+    white-space: pre-wrap; word-break: break-all; margin: 0; max-height: 260px; overflow: auto; }
+  details { margin-bottom: 10px; }
+  summary { cursor: pointer; font-size: 15px; margin-bottom: 8px; }
+  .muted { color: #8b93a1; font-size: 13px; line-height: 1.45; }
+  #err { color: #ff7676; }
+</style>
+</head>
+<body>
+<main>
+  <header><a href="/">‹ Comandament</a><h1>Estat de la TV</h1></header>
+  <div id="err"></div>
+
+  <div class="tiles">
+    <div class="tile" id="tPower"><div class="v">–</div><div class="l">Pantalla</div></div>
+    <div class="tile" id="tTemp"><div class="v">–</div><div class="l">Temperatura</div></div>
+    <div class="tile" id="tUp"><div class="v">–</div><div class="l">Encesa fa</div></div>
+  </div>
+
+  <h2>Sistema</h2>
+  <div id="meters"></div>
+  <table id="sys"></table>
+
+  <h2>Serveis</h2>
+  <table id="svc"></table>
+
+  <h2>Apps instal·lades a mà</h2>
+  <table id="apps"></table>
+
+  <h2>Registres</h2>
+  <details><summary>Arrencada (<code>/tmp/arrencada.log</code>)</summary><pre id="logA"></pre></details>
+  <details><summary>Comandament (<code>/tmp/remote.log</code>)</summary><pre id="logR"></pre></details>
+  <p class="muted">S'actualitza cada 10 segons. Una càrrega del sistema al voltant de 24 és normal en aquesta TV: la compten processos del firmware que esperen sense gastar CPU.</p>
+</main>
+<script>
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function dur(s) {
+    var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    return d ? d + ' d ' + h + ' h' : h ? h + ' h ' + m + ' min' : m + ' min';
+  }
+  function tile(id, v, cls) { var t = $(id); t.className = 'tile ' + (cls || ''); t.querySelector('.v').textContent = v; }
+  function meter(label, used, total, unit) {
+    var pct = total ? Math.round(used / total * 100) : 0;
+    var cls = pct >= 90 ? 'bad' : pct >= 75 ? 'warn' : '';
+    return '<div class="meter ' + cls + '"><div class="top"><span>' + esc(label) + '</span><span>' + used + ' / ' + total + ' ' + unit +
+      ' (' + pct + ' %)</span></div><div class="bar"><div style="width:' + pct + '%"></div></div></div>';
+  }
+  function row(k, v, cls) { return '<tr><td>' + esc(k) + '</td><td class="' + (cls || '') + '">' + esc(v) + '</td></tr>'; }
+  function yes(b, on, off) { return b == null ? ['—', 'na'] : b ? [on || '✓ en marxa', 'ok'] : [off || '✗ aturat', 'ko']; }
+  var POWER = { 'Active': ['Encesa', ''], 'Screen Off': ['Apagada (so)', 'warn'], 'Screen Saver': ['Estalvi', 'warn'],
+    'Active Standby': ['En espera', 'warn'] };
+  var DISK = { apps: 'Apps i fitxers enviats', 'var': 'Dades del sistema' };
+
+  function load() {
+    fetch('/api/status').then(function (r) { return r.json(); }).then(function (s) {
+      $('err').textContent = '';
+      var p = POWER[s.power] || [s.power || '?', ''];
+      tile('tPower', p[0], p[1]);
+      tile('tTemp', s.tempC != null ? s.tempC + ' °C' : '–', s.tempC >= 85 ? 'bad' : s.tempC >= 75 ? 'warn' : '');
+      tile('tUp', dur(s.uptime));
+
+      var m = s.mem, h = meter('Memòria', m.totalMB - m.availMB, m.totalMB, 'MB');
+      if (m.swapTotalMB) h += meter('Intercanvi (swap)', m.swapUsedMB, m.swapTotalMB, 'MB');
+      (s.disks || []).forEach(function (d) { h += meter('Disc: ' + (DISK[d.name] || d.name), d.usedMB, d.totalMB, 'MB'); });
+      $('meters').innerHTML = h;
+
+      var boot = new Date(s.now - s.uptime * 1000);
+      $('sys').innerHTML =
+        (s.system ? row('Model', s.system.model) + row('Firmware', s.system.firmware + ' · webOS ' + s.system.webos) : '') +
+        row('App en primer pla', s.app || '—') +
+        row('Engegada', boot.toLocaleString('ca-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) +
+        row('Càrrega (1 / 5 / 15 min)', s.load.join(' / ')) +
+        row('Xarxa', s.net ? (s.net.type === 'cable' ? 'Cable' : 'Wi-Fi ' + (s.net.ssid || '')) + ' · ' + s.net.ip : 'sense connexió', s.net ? '' : 'ko') +
+        row('Internet', s.net && s.net.internet ? '✓' : '✗', s.net && s.net.internet ? 'ok' : 'ko') +
+        row('Fitxers enviats', s.share.files + ' (' + s.share.MB + ' MB)');
+
+      var r = s.services.remote, sv = '';
+      sv += row('Comandament (aquest servidor)', 'fa ' + dur(r.uptime) + ' · ' + r.rssMB + ' MB · node ' + r.node, 'ok');
+      var b = yes(s.services.brillo); sv += row('Horari de Brillo+', b[0], b[1]);
+      var t = yes(s.services.tvlinks, '✓ respon', '✗ no respon');
+      sv += row('Resolutor d\'enllaços (tvlinks)', s.services.tvlinks == null ? 'no configurat' : t[0], t[1]);
+      var tn = yes(s.ports.telnet, '✓ obert', '✗ tancat'); sv += row('Accés root (telnet)', tn[0], tn[1]);
+      var sh = yes(s.ports.ssh, '✓ obert', '✗ tancat'); sv += row('SSH', sh[0], sh[1]);
+      var dbg = yes(s.ports['depurador'], '✓ obert', '✗ tancat'); sv += row('Depurador web (9998)', dbg[0], dbg[1]);
+      sv += row('Scripts d\'arrencada (init.d)', s.initd.join(', ') || 'cap', s.initd.length ? '' : 'ko');
+      $('svc').innerHTML = sv;
+
+      $('apps').innerHTML = s.apps.map(function (a) { return row(a.title + ' · ' + a.id, a.version); }).join('') || row('Cap', '');
+      $('logA').textContent = s.logs.arrencada || '(buit)';
+      $('logR').textContent = s.logs.remote || '(buit)';
+    }).catch(function () { $('err').textContent = 'Sense connexió amb la TV'; });
+  }
+  load(); setInterval(load, 10000);
+</script>
+</body>
+</html>
