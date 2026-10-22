@@ -128,8 +128,8 @@
     }).join('');
     var since = new Date(j.since);
     document.getElementById('note').textContent = 'El temps d\'ús es compta des del ' + since.getDate() + '/' + (since.getMonth() + 1) + '/' +
-      since.getFullYear() + ', minut a minut, només amb la pantalla encesa i mentre el comandament està en marxa (després d\'una aturada completa, ' +
-      'fins que obres Homebrew Channel). Les obertures són el comptador propi de la TV; la darrera columna és l\'última vegada.';
+      since.getFullYear() + ', minut a minut, només amb la pantalla encesa i mentre el comandament està en marxa. ' +
+      'Les obertures són el comptador propi de la TV; la darrera columna és l\'última vegada.';
   }).catch(function () { document.getElementById('err').textContent = 'Sense connexió amb la TV'; });
 </script>
 </body>

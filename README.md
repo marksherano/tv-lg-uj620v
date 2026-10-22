@@ -25,6 +25,10 @@ Apps i eines casolanes per a una **LG 49UJ620V** (2017, webOS 3.9) rootejada amb
 
 ![Brillo+](docs/brillo.png)
 
+![3Cat Lite — guia de programació](docs/3cat-guia.png)
+
+<img src="docs/mobil.png" alt="Comandament web al mòbil: comandament, Envia a la TV i Estadístiques" width="625">
+
 ## Requisits
 
 - TV LG amb webOS 3.x rootejada i Homebrew Channel (telnet root al port 23).
