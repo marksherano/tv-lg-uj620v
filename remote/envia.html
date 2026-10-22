@@ -60,7 +60,7 @@
   <div id="st"></div>
 
   <h2>Enllaç</h2>
-  <div class="row"><input id="u" type="url" placeholder="YouTube, 3Cat o una foto/vídeo…" enterkeyhint="go"><button id="go">Obre</button></div>
+  <div class="row"><input id="u" type="url" placeholder="YouTube, 3Cat, RTVE, Atresplayer…" enterkeyhint="go"><button id="go">Obre</button></div>
 
   <h2>Enviats recentment <span class="muted" id="free"></span></h2>
   <div class="grid" id="recent"></div>
@@ -129,7 +129,7 @@
 
   async function openUrl() {
     var u = document.getElementById('u').value.trim(); if (!u) return;
-    status('Obrint…');
+    status('Obrint… (una web de vídeo pot trigar uns segons)');
     try {
       var r = await (await fetch('/api/share/url?u=' + encodeURIComponent(u))).json();
       if (r.returnValue) { status('A la TV ✓', 'ok'); document.getElementById('u').value = ''; }

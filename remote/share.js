@@ -3,12 +3,16 @@
 var fs = require('fs');
 var path = require('path');
 var execFile = require('child_process').execFile;
+var http = require('http');
 
 var DIR = '/media/developer/share';
 var MAX_AGE_MS = 7 * 86400000;   // uploads are deleted after a week
 var KEEP_FREE_MB = 80;           // never fill the partition beyond this
 var VIEWER = 'cat.pantalla';
 var BASE = 'http://127.0.0.1:8080/share/';
+// Other video pages (RTVE, Atresplayer clips...) are resolved by yt-dlp on the home mini PC
+// (firebat/tvlinks.py); content with DRM cannot be played.
+var RESOLVER = 'http://192.168.1.157:8097/resolve?u=';
 
 var TYPES = {
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp',
@@ -129,7 +133,7 @@ module.exports = function (luna, send) {
       fs.unlink(path.join(DIR, name), function (err) { send(res, 200, { returnValue: !err }); });
     },
 
-    // GET /api/share/url?u=<link>  — YouTube, 3Cat or a direct photo/video URL
+    // GET /api/share/url?u=<link>  — YouTube, 3Cat, a direct photo/video URL or any page yt-dlp knows
     url: function (q, res) {
       var u = String(q.u || '').trim(), m;
       if (!/^https?:\/\//i.test(u)) return send(res, 400, { error: 'enllaç no vàlid' });
@@ -144,10 +148,33 @@ module.exports = function (luna, send) {
       }
       var ext = path.extname(u.split(/[?#]/)[0]).toLowerCase();
       var type = /\.(mp4|m4v|mov|webm|mkv|m3u8)$/.test(ext) ? 'video' : (/\.(jpe?g|png|gif|webp)$/.test(ext) ? 'photo' : null);
-      if (!type) return send(res, 400, { error: 'Només enllaços de YouTube, 3Cat o de fotos i vídeos directes' });
-      luna('luna://com.webos.applicationManager/launch',
-        { id: VIEWER, params: { items: [{ url: u, type: type, name: path.basename(u.split(/[?#]/)[0]) }] } },
-        function (r) { send(res, 200, r); });
+      if (!type) return resolveAndShow(u, res);
+      show(u, type, path.basename(u.split(/[?#]/)[0]), res);
     }
   };
+
+  function show(url, type, name, res) {
+    luna('luna://com.webos.applicationManager/launch',
+      { id: VIEWER, params: { items: [{ url: url, type: type, name: name }] } },
+      function (r) { send(res, 200, r); });
+  }
+
+  function resolveAndShow(u, res) {
+    var done = false;
+    function fail(msg) { if (!done) { done = true; send(res, 200, { returnValue: false, error: msg }); } }
+    var req = http.get(RESOLVER + encodeURIComponent(u), function (r) {
+      var body = '';
+      r.setEncoding('utf8');
+      r.on('data', function (c) { body += c; });
+      r.on('end', function () {
+        var j;
+        try { j = JSON.parse(body); } catch (e) { return fail('resposta estranya del firebat'); }
+        if (!j.url) return fail(j.error || "no s'ha trobat el vídeo");
+        done = true;
+        show(j.url, 'video', j.title || u, res);
+      });
+    });
+    req.setTimeout(100000, function () { req.abort(); fail('el firebat ha trigat massa'); });
+    req.on('error', function () { fail('el firebat no respon (és encès?)'); });
+  }
 };

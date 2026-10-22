@@ -16,9 +16,10 @@ Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada 
 |---|---|
 | [`brillo/`](brillo) | **Brillo+** — control de retroiluminación, brillo, contraste, color, ahorro de energía… con perfiles (Día, Tarde, Noche, Cine, 3 personales) y programación horaria. |
 | [`cat3/`](cat3) | **3Cat Lite** — cliente no oficial de 3Cat para TVs en las que la app nueva no es compatible: directos, guía de programación, últimos vídeos, programas A–Z, búsqueda, subtítulos, favoritos y «Seguir viendo». |
-| [`remote/`](remote) | **Mando web** — servidor Node que corre en la TV (puerto 8080) con una página para el móvil: flechas, volumen, apps, entradas, escribir texto, mensajes en pantalla, apagar pantalla, ahorro de energía y temporizador de apagado. Incluye **Enviar a la TV** (`/envia`: fotos, vídeos y enlaces de YouTube/3Cat desde el móvil, también con un atajo del iPhone) y **Estadísticas** (`/estadistiques`: tiempo de uso por día y por app). |
+| [`remote/`](remote) | **Mando web** — servidor Node que corre en la TV (puerto 8080) con una página para el móvil: flechas, volumen, apps, entradas, escribir texto, mensajes en pantalla, apagar pantalla, ahorro de energía y temporizador de apagado. Incluye **Enviar a la TV** (`/envia`: fotos, vídeos y enlaces de YouTube, 3Cat, RTVE, Atresplayer… desde el móvil, también con un atajo del iPhone) y **Estadísticas** (`/estadistiques`: tiempo de uso por día y por app). |
 | [`pantalla/`](pantalla) | **Pantalla** — app de la TV que muestra lo que se envía desde el móvil: fotos (pase automático) y vídeos (incluido HEVC `.mov` del iPhone). |
 | [`arrencada/`](arrencada) | **Arrencada** — app invisible que la TV abre sola al encenderse y que activa los servicios de Homebrew Channel (telnet, ssh, mando…) sin tener que abrirlo. |
+| [`firebat/`](firebat) | **tvlinks** — servicio para el miniPC de casa que, con yt-dlp, convierte enlaces de páginas de vídeo (RTVE, clips de Atresplayer, autonómicas, Vimeo…) en la dirección directa que la TV puede reproducir. El contenido con DRM no funciona. |
 | [`tvtool/`](tvtool) | Herramientas para el ordenador (Python): consola root por telnet, subir archivos, depurar apps por CDP, script de limpieza (*debloat*). |
 | [`build/make_ipk.py`](build/make_ipk.py) | Empaqueta una carpeta de app en un `.ipk` instalable. |
 
@@ -84,6 +85,24 @@ desinstalar `cat.arrencada` y reiniciar.
 | [`remote/remote-init`](remote/remote-init) | `/var/lib/webosbrew/init.d/remote` — arranca el mando web |
 
 Para deshacer cualquier cambio: borra el archivo correspondiente de `init.d` y reinicia la TV.
+
+## Enlaces de vídeo con yt-dlp (miniPC)
+
+La TV no puede ejecutar yt-dlp (Python 2.7 y sistema ARM *soft-float*), así que lo hace el miniPC de
+casa (`firebat`, 192.168.1.157, Ubuntu). Cuando el enlace enviado no es de YouTube, 3Cat ni un archivo
+directo, el mando pide `http://192.168.1.157:8097/resolve?u=<enlace>` y abre el resultado (MP4 o HLS,
+hasta 1080p) en Pantalla. Solo responde a la red local.
+
+Instalación en el miniPC (sin root; se arranca con el `crontab` del usuario y yt-dlp se actualiza cada día):
+
+```bash
+mkdir -p ~/tvlinks && cp firebat/tvlinks.py firebat/start.sh ~/tvlinks/
+curl -sSL -o ~/tvlinks/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp
+chmod +x ~/tvlinks/yt-dlp ~/tvlinks/start.sh
+(crontab -l; echo '@reboot $HOME/tvlinks/start.sh'; echo '*/5 * * * * $HOME/tvlinks/start.sh'
+ echo '30 5 * * * python3 $HOME/tvlinks/yt-dlp -U >> $HOME/tvlinks/update.log 2>&1') | crontab -
+~/tvlinks/start.sh
+```
 
 ## Notas técnicas (webOS 3.9)
 
