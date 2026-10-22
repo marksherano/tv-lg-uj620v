@@ -9,6 +9,9 @@ brillo_captura.png
 apps.txt
 tvtool/apps.json
 
+# remote settings for this house (copy remote/config.example.json)
+remote/config.json
+
 # TV pairing key
 tvtool/clientkey.txt
 

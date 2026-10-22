@@ -19,7 +19,7 @@ Apps i eines casolanes per a una **LG 49UJ620V** (2017, webOS 3.9) rootejada amb
 | [`remote/`](remote) | **Comandament web** — servidor Node que corre a la TV (port 8080) amb una pàgina per al mòbil: fletxes, volum, apps, entrades, escriure text, missatges a la pantalla, pantalla off, estalvi d'energia i temporitzador d'apagada. Inclou **Envia a la TV** (`/envia`: fotos, vídeos i enllaços de YouTube, 3Cat, RTVE, Atresplayer… des del mòbil, també amb una drecera de l'iPhone) i **Estadístiques** (`/estadistiques`: temps d'ús per dia i per app). |
 | [`pantalla/`](pantalla) | **Pantalla** — app de la TV que mostra el que s'envia des del mòbil: fotos (passi automàtic) i vídeos (inclòs HEVC `.mov` de l'iPhone). |
 | [`arrencada/`](arrencada) | **Arrencada** — app invisible que la TV obre sola en engegar-se i que activa els serveis de Homebrew Channel (telnet, ssh, comandament…) sense haver d'obrir-lo. |
-| [`firebat/`](firebat) | **tvlinks** — servei per al miniPC de casa que, amb yt-dlp, converteix enllaços de pàgines de vídeo (RTVE, clips d'Atresplayer, autonòmiques, Vimeo…) en l'adreça directa que la TV pot reproduir. El contingut amb DRM no funciona. |
+| [`tvlinks/`](tvlinks) | **tvlinks** — servei per a un ordinador de casa sempre encès (Linux) que, amb yt-dlp, converteix enllaços de pàgines de vídeo (RTVE, clips d'Atresplayer, autonòmiques, Vimeo…) en l'adreça directa que la TV pot reproduir. El contingut amb DRM no funciona. |
 | [`tvtool/`](tvtool) | Eines per a l'ordinador (Python): consola root per telnet, pujar fitxers, depurar apps per CDP, script de neteja (*debloat*). |
 | [`build/make_ipk.py`](build/make_ipk.py) | Empaqueta una carpeta d'app en un `.ipk` instal·lable. |
 
@@ -86,23 +86,26 @@ desinstal·lar `cat.arrencada` i reiniciar.
 
 Per desfer qualsevol canvi: esborra el fitxer corresponent de `init.d` i reinicia la TV.
 
-## Enllaços de vídeo amb yt-dlp (miniPC)
+## Enllaços de vídeo amb yt-dlp
 
-La TV no pot executar yt-dlp (Python 2.7 i sistema ARM *soft-float*), així que ho fa el miniPC de casa
-(`firebat`, 192.168.1.157, Ubuntu). Quan l'enllaç enviat no és de YouTube, 3Cat ni un fitxer directe,
-el comandament demana `http://192.168.1.157:8097/resolve?u=<enllaç>` i obre el resultat (MP4 o HLS,
-fins a 1080p) a Pantalla. Només respon a la xarxa local.
+La TV no pot executar yt-dlp (el seu Python és massa antic), així que ho fa un altre ordinador de la
+xarxa local que estigui sempre encès (un miniPC, un NAS amb Linux…) amb Python 3. Quan l'enllaç enviat
+no és de YouTube, 3Cat ni un fitxer directe, el comandament demana `<servei>/resolve?u=<enllaç>` i obre
+el resultat (MP4 o HLS, fins a 1080p) a Pantalla. El servei només respon a la xarxa local.
 
-Instal·lació al miniPC (sense root; s'arrenca amb el `crontab` de l'usuari i yt-dlp s'actualitza cada dia):
+Instal·lació a l'ordinador (sense root; s'arrenca amb el `crontab` de l'usuari i yt-dlp s'actualitza cada dia):
 
 ```bash
-mkdir -p ~/tvlinks && cp firebat/tvlinks.py firebat/start.sh ~/tvlinks/
+mkdir -p ~/tvlinks && cp tvlinks/tvlinks.py tvlinks/start.sh ~/tvlinks/
 curl -sSL -o ~/tvlinks/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp
 chmod +x ~/tvlinks/yt-dlp ~/tvlinks/start.sh
 (crontab -l; echo '@reboot $HOME/tvlinks/start.sh'; echo '*/5 * * * * $HOME/tvlinks/start.sh'
  echo '30 5 * * * python3 $HOME/tvlinks/yt-dlp -U >> $HOME/tvlinks/update.log 2>&1') | crontab -
 ~/tvlinks/start.sh
 ```
+
+A la TV, copia [`remote/config.example.json`](remote/config.example.json) com a
+`/media/developer/remote/config.json` amb l'adreça d'aquest ordinador (port 8097).
 
 ## Notes tècniques (webOS 3.9)
 

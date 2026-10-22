@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Turns video page links (RTVE, Atresplayer clips, regional TVs, Vimeo...) into a direct URL the TV
-can play, using yt-dlp. Runs on the home mini PC (firebat); the TV remote (remote/share.js) calls
+can play, using yt-dlp. Runs on any always-on Linux box on the LAN; the TV remote (remote/share.js) calls
 GET /resolve?u=<link> and opens the result in Pantalla. Content with DRM cannot be resolved."""
 import ipaddress
 import json

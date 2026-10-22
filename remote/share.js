@@ -10,9 +10,10 @@ var MAX_AGE_MS = 7 * 86400000;   // uploads are deleted after a week
 var KEEP_FREE_MB = 80;           // never fill the partition beyond this
 var VIEWER = 'cat.pantalla';
 var BASE = 'http://127.0.0.1:8080/share/';
-// Other video pages (RTVE, Atresplayer clips...) are resolved by yt-dlp on the home mini PC
-// (firebat/tvlinks.py); content with DRM cannot be played.
-var RESOLVER = 'http://192.168.1.157:8097/resolve?u=';
+// Other video pages (RTVE, Atresplayer clips...) are resolved by yt-dlp running on another machine
+// of the LAN (tvlinks/tvlinks.py), whose address is in config.json: {"tvlinks": "http://host:8097"}.
+// Content with DRM cannot be played.
+var CONFIG = path.join(__dirname, 'config.json');
 
 var TYPES = {
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp',
@@ -160,21 +161,23 @@ module.exports = function (luna, send) {
   }
 
   function resolveAndShow(u, res) {
-    var done = false;
+    var done = false, base;
     function fail(msg) { if (!done) { done = true; send(res, 200, { returnValue: false, error: msg }); } }
-    var req = http.get(RESOLVER + encodeURIComponent(u), function (r) {
+    try { base = JSON.parse(fs.readFileSync(CONFIG, 'utf8')).tvlinks; } catch (e) { /* no config */ }
+    if (!base) return fail('Només enllaços de YouTube, 3Cat o de fotos i vídeos directes (el servei tvlinks no està configurat)');
+    var req = http.get(base.replace(/\/+$/, '') + '/resolve?u=' + encodeURIComponent(u), function (r) {
       var body = '';
       r.setEncoding('utf8');
       r.on('data', function (c) { body += c; });
       r.on('end', function () {
         var j;
-        try { j = JSON.parse(body); } catch (e) { return fail('resposta estranya del firebat'); }
+        try { j = JSON.parse(body); } catch (e) { return fail('resposta estranya del servei tvlinks'); }
         if (!j.url) return fail(j.error || "no s'ha trobat el vídeo");
         done = true;
         show(j.url, 'video', j.title || u, res);
       });
     });
-    req.setTimeout(100000, function () { req.abort(); fail('el firebat ha trigat massa'); });
-    req.on('error', function () { fail('el firebat no respon (és encès?)'); });
+    req.setTimeout(100000, function () { req.abort(); fail('el servei tvlinks ha trigat massa'); });
+    req.on('error', function () { fail("el servei tvlinks no respon (l'ordinador és encès?)"); });
   }
 };
