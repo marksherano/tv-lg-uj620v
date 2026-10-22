@@ -228,9 +228,31 @@ http.createServer(function (req, res) {
     });
   }
 
+  if (p === '/api/wakeurl') {
+    var tl = null;
+    try { tl = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')).tvlinks; } catch (e) { /* none */ }
+    return send(res, 200, { url: tl ? tl.replace(/\/$/, '') + '/tv' : null });
+  }
+
   if (p === '/api/state') return state(function (s) { send(res, 200, s); });
 
   send(res, 404, { error: 'not found' });
 }).listen(PORT, '0.0.0.0', function () {
   console.log('remote listening on ' + PORT);
+  setTimeout(registerWake, 20000);
+  setInterval(registerWake, 6 * 3600000);
 });
+
+// Nothing here answers while the TV is off, so tvlinks (always on) sends the Wake-on-LAN packet:
+// tell it our MAC (it takes the IP from the request). Its page /tv is the "turn on" button.
+function registerWake() {
+  var base, ifs = require('os').networkInterfaces(), mac = null;
+  try { base = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')).tvlinks; } catch (e) { /* no config */ }
+  if (!base) return;
+  Object.keys(ifs).forEach(function (n) {
+    ifs[n].forEach(function (a) { if (!mac && a.family === 'IPv4' && !a.internal && a.mac) mac = a.mac; });
+  });
+  if (!mac) return;
+  http.get(base.replace(/\/$/, '') + '/wake/register?mac=' + mac + '&port=' + PORT, function (r) { r.resume(); })
+    .on('error', function () { /* tvlinks box off: try again later */ });
+}

@@ -134,6 +134,8 @@
     <button id="scrOn" class="small">Pantalla on</button>
     <button id="power" class="small red">⏻ Apagar</button>
   </div>
+  <div class="sub hidden" id="wakeSt">Per encendre-la quan estigui apagada: <a id="wakeA" href="#">pàgina «Encén la TV»</a>
+    (afegeix-la a la pantalla d'inici)</div>
 
   <div class="sub">Estalvi d'energia (baixa la llum de fons)</div>
   <div class="row r4">
@@ -289,8 +291,19 @@
   sl.addEventListener('keydown', function (e) { if (e.key === 'Enter') sleepCustom(); });
 
   document.getElementById('power').addEventListener('click', function () {
-    if (confirm('Apagar la TV? Des d\'aquí no la podràs tornar a encendre.')) api('key?k=POWER');
+    if (confirm(wakeUrl ? 'Apagar la TV?' : 'Apagar la TV? Des d\'aquí no la podràs tornar a encendre.')) api('key?k=POWER');
   });
+
+  // turning on is done by tvlinks (Wake-on-LAN), since this page is down while the TV is off;
+  // sw.js sends the installed app there when the TV does not answer
+  var wakeUrl = null;
+  fetch('/api/wakeurl').then(function (r) { return r.json(); }).then(function (j) {
+    if (!j.url) return;
+    wakeUrl = j.url;
+    document.getElementById('wakeA').href = j.url;
+    document.getElementById('wakeSt').className = 'sub';
+    if (window.caches) caches.open('wake').then(function (c) { c.put('/wake-url', new Response(j.url)); });
+  }).catch(function () {});
 
   refresh(); setInterval(refresh, 5000);
   // lets Android install the page and list it in the Share menu (see /envia)

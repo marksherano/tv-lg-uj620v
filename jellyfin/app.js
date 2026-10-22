@@ -3,7 +3,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '1.0.3';
+  var VERSION = '1.1.0';
   var PAGE = 48;
   var FIELDS = 'Overview,Genres,PrimaryImageAspectRatio';
   var SKIP_LIBS = { music: 1, books: 1, playlists: 1, livetv: 1, photos: 1 };
@@ -647,7 +647,7 @@
     $('osdDur').textContent = d ? fmtT(d) : '';
     $('osdState').textContent = video.paused ? '❚❚ En pausa' : '';
   }
-  setInterval(function () { if (playing) updOsd(); }, 1000);
+  setInterval(function () { if (playing) { updOsd(); if (video.ended) onEnded(); } }, 1000);
 
   function label(s) { return s.DisplayTitle || s.Language || ('Pista ' + s.Index); }
 
@@ -693,12 +693,111 @@
       report('/Sessions/Playing');
       clearInterval(reportTimer);
       reportTimer = setInterval(function () { report('/Sessions/Playing/Progress'); }, 10000);
+      loadExtras(p);
       if (p.subTracks.length && opts.sub === undefined) {
         toast(p.sub >= 0 ? 'Subtítols: ' + label(subTrack(p.sub)) + ' (▲ per canviar)' : 'Té subtítols: prem ▲ per activar-los');
       }
     });
     showOsd();
   }
+  /* ---------- intro / credits and next episode ----------
+     Segments come from the server (/MediaSegments, filled by a plugin such as Intro Skipper); without
+     them, chapters with a telling name are used. The next episode is offered when the credits start
+     (Outro segment) or when the video ends, with a 10 s countdown. */
+  var SKIP_TEXT = { Intro: 'Salta la intro', Recap: 'Salta el resum', Commercial: 'Salta l\'anunci',
+    Preview: 'Salta l\'avançament', Outro: 'Salta els crèdits' };
+  var CHAPTER_TYPES = [[/^(intro|opening|obertura|cap[cç]alera)\b/i, 'Intro'], [/^(recap|resum|previously)/i, 'Recap'],
+    [/(credits|crèdits|cr[eé]ditos|ending|outro)/i, 'Outro']];
+  var upnext = null;   // { left: seconds, timer, ended: bool } while the countdown box is up
+
+  function loadExtras(p) {
+    if (p.extras) return;
+    p.extras = true; p.segs = [];
+    get('/MediaSegments/' + p.it.Id, function (err, d) {
+      if (playing !== p) return;
+      ((!err && d && d.Items) || []).forEach(function (sg) {
+        if (SKIP_TEXT[sg.Type] && sg.EndTicks > sg.StartTicks) p.segs.push({ type: sg.Type, a: sg.StartTicks / 1e7, b: sg.EndTicks / 1e7 });
+      });
+      if (p.segs.length) return;
+      get('/Items/' + p.it.Id + '?' + qs({ userId: S.userId, Fields: 'Chapters' }), function (e2, it) {
+        if (playing !== p || e2 || !it || !it.Chapters) return;
+        var ch = it.Chapters;
+        ch.forEach(function (c, i) {
+          var type = null;
+          CHAPTER_TYPES.forEach(function (t) { if (!type && t[0].test(String(c.Name || '').trim())) type = t[1]; });
+          var a = c.StartPositionTicks / 1e7, b = i + 1 < ch.length ? ch[i + 1].StartPositionTicks / 1e7 : p.duration;
+          if (type && b > a) p.segs.push({ type: type, a: a, b: b });
+        });
+      });
+    });
+    if (p.it.Type === 'Episode' && p.it.SeriesId) {
+      get('/Shows/' + p.it.SeriesId + '/Episodes?' + qs({ UserId: S.userId, StartItemId: p.it.Id, Limit: 2 }), function (err, d) {
+        if (playing !== p || err || !d || !d.Items) return;
+        if (d.Items.length > 1 && d.Items[0].Id === p.it.Id) p.next = d.Items[1];
+      });
+    }
+  }
+  function segAt(t) {
+    var segs = (playing && playing.segs) || [];
+    for (var i = 0; i < segs.length; i++) if (segs[i].a <= t && t < segs[i].b - 1) return segs[i];
+    return null;
+  }
+  function showSkip(sg) {
+    if (playing) playing.skipSeg = sg;
+    if (!sg || upnext) { $('skip').className = 'skip hidden'; return; }
+    $('skip').innerHTML = '⏭ ' + SKIP_TEXT[sg.type] + ' <span>OK</span>';
+    $('skip').className = 'skip';
+  }
+  video.addEventListener('timeupdate', function () {
+    var p = playing;
+    if (!p || !p.segs || video.paused) return;
+    var sg = segAt(video.currentTime);
+    if (sg && sg.type === 'Outro' && p.next && !p.noNext && !upnext) { startUpnext(false); return; }
+    if (sg !== p.skipSeg) showSkip(sg);
+  });
+  function skipSeg() {
+    var sg = playing.skipSeg, d = playing.duration || video.duration || 0;
+    showSkip(null);
+    video.currentTime = d ? Math.min(sg.b, d - 0.5) : sg.b;
+  }
+
+  function startUpnext(ended) {
+    var p = playing;
+    if (!p || !p.next) return false;
+    showSkip(null);
+    upnext = { left: 10, ended: ended };
+    $('upTitle').textContent = epCode(p.next) + ' · ' + p.next.Name;
+    var tick = function () {
+      if (upnext.left <= 0) return playNext();
+      $('upCount').textContent = 'Comença en ' + upnext.left-- + ' s';
+    };
+    upnext.timer = setInterval(tick, 1000); tick();
+    $('upnext').className = 'upnext';
+    return true;
+  }
+  function stopUpnext() {
+    if (!upnext) return;
+    clearInterval(upnext.timer); upnext = null;
+    $('upnext').className = 'upnext hidden';
+  }
+  // BACK on the countdown: keep watching the credits, or leave if the video has already ended
+  function cancelUpnext() {
+    var ended = upnext.ended;
+    stopUpnext();
+    if (ended) return closePlayer(playing.duration || video.duration || 0);
+    playing.noNext = true;
+  }
+  function playNext() {
+    var p = playing, n = p && p.next;
+    stopUpnext();
+    if (!n) return;
+    clearInterval(reportTimer);
+    stopSession(p, p.duration || video.duration || 0);   // watched to the end: the server marks it played
+    video.pause();
+    var pos = n.UserData && n.UserData.PlaybackPositionTicks ? n.UserData.PlaybackPositionTicks / 1e7 : 0;
+    play(n, pos);
+  }
+
   function playError(t) {
     $('spinner').textContent = t; $('spinner').className = 'spinner';
   }
@@ -739,15 +838,20 @@
     }
     playError('No s\'ha pogut reproduir aquest vídeo');
   });
-  video.addEventListener('ended', function () {
-    if (!playing) return;
-    closePlayer(playing.duration || video.duration || 0);
-  });
+  // 'ended' sometimes comes late (or not at all) after seeking to the end of an HLS stream: the OSD
+  // timer checks video.ended too
+  function onEnded() {
+    if (!playing || upnext || playing.endSeen) return;
+    playing.endSeen = true;
+    if (!startUpnext(true)) closePlayer(playing.duration || video.duration || 0);
+  }
+  video.addEventListener('ended', onEnded);
 
   function closePlayer(endAt) {
     var p = playing;
     clearInterval(reportTimer);
     var at = endAt != null ? endAt : video.currentTime || (p && p.start) || 0;
+    stopUpnext(); showSkip(null);
     playing = null; subs = []; showSub('');
     video.pause(); video.removeAttribute('src'); video.load();
     $('player').className = 'player hidden';
@@ -833,6 +937,7 @@
   var lastKey = 0, lastTime = 0, rep = 0;
 
   function back() {
+    if (playing && upnext) return cancelUpnext();
     if (playing) return closePlayer();
     if (area === 'search') { $('q').blur(); area = 'tabs'; return updateFocus(); }
     if (stack.length > 1) { stack.pop(); renderGrid(); return; }
@@ -842,6 +947,8 @@
 
   function playerKey(k) {
     var big = rep > 3, d = playing.duration || video.duration || 0;
+    if (k === 13 && upnext) { playNext(); return true; }
+    if (k === 13 && playing.skipSeg && !video.paused) { skipSeg(); showOsd(); return true; }
     switch (k) {
       case 13: case 415: case 19:
         if (k === 415 || (k === 13 && video.paused)) video.play(); else video.pause();

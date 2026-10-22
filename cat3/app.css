@@ -68,6 +68,13 @@ html, body { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hid
 .subs { position: absolute; left: 120px; right: 120px; bottom: 90px; text-align: center; pointer-events: none; }
 .subs span { display: inline-block; background: rgba(0,0,0,.72); color: #fff; font-size: 46px; line-height: 60px;
   padding: 4px 18px; border-radius: 8px; text-shadow: 0 2px 3px #000; }
+.upnext { position: absolute; right: 80px; bottom: 260px; width: 620px; background: rgba(20,22,30,.95);
+  border: 3px solid #e2003a; border-radius: 14px; padding: 24px 30px; }
+.up-h { font-size: 24px; color: #ff5c7f; text-transform: uppercase; letter-spacing: 1px; }
+.up-t { font-size: 34px; font-weight: bold; margin: 8px 0 4px; }
+.up-s { font-size: 24px; color: #9a9aa6; margin-bottom: 8px; }
+.up-c { font-size: 28px; color: #c4c4cc; }
+.up-k { font-size: 22px; color: #8a8a96; margin-top: 12px; }
 .toast { position: absolute; left: 50%; top: 60px; -webkit-transform: translateX(-50%); transform: translateX(-50%);
   background: rgba(20,20,26,.92); border: 2px solid #e2003a; color: #fff; font-size: 30px; padding: 14px 30px;
   border-radius: 12px; z-index: 10; white-space: nowrap; }

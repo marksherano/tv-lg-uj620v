@@ -461,7 +461,7 @@
     }
     $('osdState').textContent = video.paused ? '❚❚ En pausa' : '';
   }
-  setInterval(function () { if (playing) updOsd(); }, 1000);
+  setInterval(function () { if (playing) { updOsd(); if (video.ended) onEnded(); } }, 1000);
 
   function startPlayer(info) {
     playing = info; sources = info.sources; srcIdx = 0;
@@ -492,7 +492,63 @@
     $('spinner').textContent = 'No s\'ha pogut reproduir aquest vídeo';
     $('spinner').className = 'spinner';
   });
-  video.addEventListener('ended', function () { savePos(true); closePlayer(); });
+  // 'ended' sometimes comes late after seeking to the end: the OSD timer checks video.ended too
+  function onEnded() {
+    if (!playing || upnext || playing.endSeen) return;
+    playing.endSeen = true;
+    savePos(true);
+    if (!startUpnext()) closePlayer();
+  }
+  video.addEventListener('ended', onEnded);
+
+  /* ---------- next episode: the one of the same program aired right after this one ---------- */
+  var upnext = null;   // { left: seconds, timer } while the countdown box is up
+  function findNext(p, progId) {
+    var page = 0, prev = null;
+    function look() {
+      page++;
+      getJSON(API + 'videos?_format=json&version=2.0&items_pagina=100&tipus_contingut=PPD&ordre=-data_emissio&programatv_id=' +
+              progId + '&pagina=' + page, function (err, d) {
+        if (playing !== p || err || !d.resposta) return;
+        var items = (d.resposta.items && d.resposta.items.item) || [], pg = d.resposta.paginacio || {};
+        for (var i = 0; i < items.length; i++) {
+          if (String(items[i].id) !== String(p.id)) continue;
+          var n = i > 0 ? items[i - 1] : prev;   // newest first: the next one is the previous item
+          if (n) p.next = videoCard(n);
+          return;
+        }
+        prev = items[items.length - 1];
+        if (page < 3 && pg.pagina_actual < pg.total_pagines) look();
+      });
+    }
+    look();
+  }
+  function startUpnext() {
+    var p = playing;
+    if (!p || !p.next) return false;
+    upnext = { left: 10 };
+    $('upTitle').textContent = p.next.title;
+    $('upSub').textContent = p.next.sub || '';
+    var tick = function () {
+      if (upnext.left <= 0) return playNext();
+      $('upCount').textContent = 'Comença en ' + upnext.left-- + ' s';
+    };
+    upnext.timer = setInterval(tick, 1000); tick();
+    $('upnext').className = 'upnext';
+    return true;
+  }
+  function stopUpnext() {
+    if (!upnext) return;
+    clearInterval(upnext.timer); upnext = null;
+    $('upnext').className = 'upnext hidden';
+  }
+  function playNext() {
+    var n = playing && playing.next;
+    stopUpnext();
+    if (!n) return;
+    $('spinner').textContent = 'Carregant…'; $('spinner').className = 'spinner';
+    playVideo(n);
+  }
 
   // Remember where a video was left (for "Continuar veient"); finished or barely started videos are dropped.
   function savePos(done) {
@@ -503,6 +559,7 @@
             pos: finished || t < 30 ? 0 : t });
   }
   function closePlayer() {
+    stopUpnext();
     savePos(false);
     playing = null; subs = []; showSub('');
     video.pause(); video.removeAttribute('src'); video.load();
@@ -614,6 +671,7 @@
       var info = d.informacio || {};
       startPlayer({ id: it.id, title: it.title || info.titol || '', sub: it.sub || info.programa || '', img: it.img, dur: it.dur, sources: src,
                     resume: cw ? cw.pos : 0 });
+      if (info.programa_id) findNext(playing, info.programa_id);
       subTracks = (d.subtitols || []).filter(function (s) { return s.url && (!s.format || s.format === 'vtt'); });
       var pref = load('subLang', 'off'), idx = -1;
       subTracks.forEach(function (s, i) { if (s.iso === pref && idx < 0) idx = i; });
@@ -626,7 +684,7 @@
   var lastKey = 0, lastTime = 0, rep = 0;
 
   function back() {
-    if (playing) return closePlayer();
+    if (playing) return closePlayer();   // also cancels the next-episode countdown
     if (area === 'search') { $('q').blur(); area = 'tabs'; return updateFocus(); }
     if (stack.length > 1) { stack.pop(); renderGrid(); return; }
     if (area === 'grid') { area = 'tabs'; return updateFocus(); }
@@ -635,6 +693,7 @@
 
   function playerKey(k) {
     var big = rep > 3;
+    if (k === 13 && upnext) { playNext(); return true; }
     switch (k) {
       case 13: case 415: case 19:
         if (k === 415 || (k === 13 && video.paused)) video.play(); else video.pause();

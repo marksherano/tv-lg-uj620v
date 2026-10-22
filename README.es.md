@@ -15,12 +15,12 @@ Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada 
 | Carpeta | Qué es |
 |---|---|
 | [`brillo/`](brillo) | **Brillo+** — control de retroiluminación, brillo, contraste, color, ahorro de energía… con perfiles (Día, Tarde, Noche, Cine, 3 personales) y programación horaria. |
-| [`cat3/`](cat3) | **3Cat Lite** — cliente no oficial de 3Cat para TVs en las que la app nueva no es compatible: directos, guía de programación, últimos vídeos, programas A–Z, búsqueda, subtítulos, favoritos y «Seguir viendo». |
-| [`remote/`](remote) | **Mando web** — servidor Node que corre en la TV (puerto 8080) con una página para el móvil: flechas, volumen, apps, entradas, mensajes en pantalla, apagar pantalla, ahorro de energía y temporizador de apagado. **Teclado**: cuando la TV abre un campo de texto (navegador, Wi-Fi, Jellyfin Lite…) el móvil lo avisa y lo que escribes sale en la TV en directo. Incluye **Enviar a la TV** (`/envia`: fotos, vídeos y enlaces de YouTube, 3Cat, RTVE, Atresplayer… también desde el menú **Compartir** de Android y del iPhone), **Estadísticas** (`/estadistiques`: tiempo de uso por día y por app) y **Estado de la TV** (`/estat`: temperatura, memoria, disco, red, servicios en marcha, apps instaladas y registros de arranque). |
-| [`jellyfin/`](jellyfin) | **Jellyfin Lite** — cliente ligero de [Jellyfin](https://jellyfin.org): inicio con «Seguir viendo», «Siguientes capítulos» y novedades, una pestaña por biblioteca (A–Z, novedades, no vistos…), series por temporadas, ficha con sinopsis, búsqueda, subtítulos y cambio de audio. Entra con Quick Connect (un código en pantalla) o usuario y contraseña, y guarda la posición en el servidor. Reproduce directamente MP4/MOV (H.264, HEVC) y WebM; el resto (MKV…) lo convierte el servidor a HLS. |
+| [`cat3/`](cat3) | **3Cat Lite** — cliente no oficial de 3Cat para TVs en las que la app nueva no es compatible: directos, guía de programación, últimos vídeos, programas A–Z, búsqueda, subtítulos, favoritos, «Seguir viendo» y capítulo siguiente automático (cuenta atrás de 10 s al acabar). |
+| [`remote/`](remote) | **Mando web** — servidor Node que corre en la TV (puerto 8080) con una página para el móvil: flechas, volumen, apps, entradas, mensajes en pantalla, apagar pantalla, ahorro de energía, temporizador de apagado y **encender la TV** (Wake-on-LAN a través de tvlinks). **Teclado**: cuando la TV abre un campo de texto (navegador, Wi-Fi, Jellyfin Lite…) el móvil lo avisa y lo que escribes sale en la TV en directo. Incluye **Enviar a la TV** (`/envia`: fotos, vídeos y enlaces de YouTube, 3Cat, RTVE, Atresplayer… también desde el menú **Compartir** de Android y del iPhone), **Estadísticas** (`/estadistiques`: tiempo de uso por día y por app) y **Estado de la TV** (`/estat`: temperatura, memoria, disco, red, servicios en marcha, apps instaladas y registros de arranque). |
+| [`jellyfin/`](jellyfin) | **Jellyfin Lite** — cliente ligero de [Jellyfin](https://jellyfin.org): inicio con «Seguir viendo», «Siguientes capítulos» y novedades, una pestaña por biblioteca (A–Z, novedades, no vistos…), series por temporadas, ficha con sinopsis, búsqueda, subtítulos, cambio de audio, botón para saltar la intro y los créditos y capítulo siguiente automático. Entra con Quick Connect (un código en pantalla) o usuario y contraseña, y guarda la posición en el servidor. Reproduce directamente MP4/MOV (H.264, HEVC) y WebM; el resto (MKV…) lo convierte el servidor a HLS. |
 | [`pantalla/`](pantalla) | **Pantalla** — app de la TV que muestra lo que se envía desde el móvil: fotos (pase automático) y vídeos (incluido HEVC `.mov` del iPhone). |
 | [`arrencada/`](arrencada) | **Arrencada** — app invisible que la TV abre sola al encenderse y que activa los servicios de Homebrew Channel (telnet, ssh, mando…) sin tener que abrirlo. |
-| [`tvlinks/`](tvlinks) | **tvlinks** — servicio para un ordenador de casa siempre encendido (Linux) que, con yt-dlp, convierte enlaces de páginas de vídeo (RTVE, clips de Atresplayer, autonómicas, Vimeo…) en la dirección directa que la TV puede reproducir. El contenido con DRM no funciona. |
+| [`tvlinks/`](tvlinks) | **tvlinks** — servicio para un ordenador de casa siempre encendido (Linux) que, con yt-dlp, convierte enlaces de páginas de vídeo (RTVE, clips de Atresplayer, autonómicas, Vimeo…) en la dirección directa que la TV puede reproducir (el contenido con DRM no funciona). También enciende la TV desde el móvil. |
 | [`tvtool/`](tvtool) | Herramientas para el ordenador (Python): consola root por telnet, subir archivos, depurar apps por CDP, script de limpieza (*debloat*). |
 | [`build/make_ipk.py`](build/make_ipk.py) | Empaqueta una carpeta de app en un `.ipk` instalable. |
 
@@ -152,6 +152,22 @@ chmod +x ~/tvlinks/yt-dlp ~/tvlinks/start.sh
 
 En la TV, copia [`remote/config.example.json`](remote/config.example.json) como
 `/media/developer/remote/config.json` con la dirección de ese ordenador (puerto 8097).
+
+### Encender la TV desde el móvil
+
+Con la TV apagada no hay ningún servidor que responda, así que la enciende tvlinks con un paquete
+Wake-on-LAN. Hay que tener activado en el menú de la TV *Red → Encender con el móvil* (`wolwowlOnOff`).
+El mando le pasa la MAC de la TV al arrancar (`/wake/register`; tvlinks la guarda en `wake.json`, fuera
+del repositorio) y la página `<servicio>/tv` tiene el botón de encender: cuando la TV responde, abre el
+mando. En Android, la app del mando instalada va allí sola si la TV no responde. Para un atajo del iPhone
+basta con `GET <servicio>/wake`.
+
+### Saltar la intro en Jellyfin Lite
+
+Jellyfin Lite usa los segmentos del servidor (`/MediaSegments`, Jellyfin 10.10 o posterior), que rellena
+un complemento como [Intro Skipper](https://github.com/intro-skipper/intro-skipper). Si no hay, mira si
+los capítulos del archivo se llaman «Intro», «Opening», «Credits»… Cuando empiezan los créditos de un
+capítulo (o cuando acaba), propone el siguiente con una cuenta atrás de 10 s.
 
 ## Notas técnicas (webOS 3.9)
 

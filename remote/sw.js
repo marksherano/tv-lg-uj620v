@@ -1,12 +1,22 @@
-/* Service worker of the phone page. It caches nothing (the page always comes from the TV); it only
+/* Service worker of the phone page. It caches nothing (the page always comes from the TV); it
    exists so Android can install the page as an app and list it in the Share menu (manifest
-   share_target). A share arrives as a POST to /compartir: files are parked in Cache Storage and
-   /envia uploads them with its progress bar; a link goes to /envia?u=… */
+   share_target), and to send the app to tvlinks' "turn on" page when the TV is off. A share arrives
+   as a POST to /compartir: files are parked in Cache Storage and /envia uploads them with its
+   progress bar; a link goes to /envia?u=… */
 self.addEventListener('install', function () { self.skipWaiting(); });
 self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });
 
 self.addEventListener('fetch', function (e) {
   var u = new URL(e.request.url);
+  // TV off (no answer): open the "turn on the TV" page of tvlinks, whose address the page saved
+  if (e.request.mode === 'navigate' && e.request.method === 'GET') {
+    return e.respondWith(fetch(e.request).catch(function (err) {
+      return caches.open('wake').then(function (c) { return c.match('/wake-url'); }).then(function (r) {
+        if (!r) throw err;
+        return r.text().then(function (url) { return Response.redirect(url, 302); });
+      });
+    }));
+  }
   if (e.request.method !== 'POST' || u.pathname !== '/compartir') return;
   e.respondWith(e.request.formData().then(function (form) {
     var files = form.getAll('media').filter(function (f) { return f && f.size; });
