@@ -172,7 +172,7 @@ module.exports = function (luna, send) {
       });
     },
 
-    // GET /api/share/show?f=a|b|c
+    // POST /api/share/show?f=a|b|c
     show: function (q, res) {
       var have = files().map(function (f) { return f.file; });
       var names = String(q.f || '').split('|').filter(function (f) { return have.indexOf(f) >= 0; });
@@ -191,14 +191,14 @@ module.exports = function (luna, send) {
       });
     },
 
-    // GET /api/share/delete?f=name
+    // POST /api/share/delete?f=name
     remove: function (q, res) {
       var name = path.basename(String(q.f || ''));
       if (!TYPES[path.extname(name).toLowerCase()]) return send(res, 400, { error: 'nom invàlid' });
       fs.unlink(path.join(DIR, name), function (err) { send(res, 200, { returnValue: !err }); });
     },
 
-    // GET /api/share/url?u=<link>  — YouTube, 3Cat, a direct photo/video URL or any page yt-dlp knows
+    // POST /api/share/url?u=<link>  — YouTube, 3Cat, a direct photo/video URL or any page yt-dlp knows
     url: openUrl
   };
 

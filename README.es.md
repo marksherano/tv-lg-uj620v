@@ -10,6 +10,13 @@ Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada 
 > **No crees nunca `start-devmode.sh`** en firmwares recientes: el sistema verifica su firma y,
 > si falla, desactiva el modo desarrollador y borra `/media/developer` (todas las apps de Homebrew).
 
+> 🔒 **Solo para una red local de confianza.** Con Homebrew Channel la TV abre un telnet root
+> **sin contraseña** en el puerto 23, y el mando web (puerto 8080) no pide ninguna clave: cualquier
+> aparato de la red puede controlar la TV. No abras nunca los puertos 23, 8080 ni 3000 a Internet
+> (ninguna redirección de puertos en el router ni DMZ) y no conectes la TV a redes Wi-Fi compartidas o
+> públicas. El mando solo acepta las acciones por `POST` y desde sus propias páginas, para que una web
+> cualquiera abierta en un móvil de casa no pueda pulsar teclas ni apagar la TV.
+
 ## Contenido
 
 | Carpeta | Qué es |

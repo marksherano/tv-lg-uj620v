@@ -1,6 +1,8 @@
 /* Web remote for the LG TV. Runs on the TV itself (node 0.12, ES5) as root.
    GET /            -> remote page (also /envia and /estadistiques)
-   GET /api/...     -> JSON; every action is whitelisted and run with execFile (no shell).
+   GET /api/...     -> JSON reads; anything that acts on the TV is POST /api/... and only accepted from
+                       this server's own pages (see apiGuard). Every action is whitelisted and run with
+                       execFile (no shell).
    Uploads/sharing live in share.js, usage statistics in stats.js, the phone keyboard in kbd.js,
    the TV health page in status.js. */
 var http = require('http');
@@ -36,6 +38,23 @@ function luna(uri, params, cb, asApp) {
 function send(res, code, obj) {
   res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(obj));
+}
+
+// Read-only endpoints; every other /api/ path changes something and must be a POST.
+var READS = { '/api/share/list': 1, '/api/stats': 1, '/api/status': 1, '/api/kb': 1, '/api/state': 1,
+  '/api/wakeurl': 1 };
+
+// Any web page open on a phone or PC of the LAN could otherwise press keys or turn the TV off
+// (a plain <img src="http://tv:8080/api/key?k=POWER"> or a hidden form). Browsers send Origin on
+// cross-site POSTs, so a request from another site is refused; clients that send neither Origin nor
+// Referer (the iPhone shortcut, curl) are not browsers being tricked and are let through.
+function apiGuard(req, res, p) {
+  var from = req.headers.origin || req.headers.referer;
+  if (from && require('url').parse(from).host !== req.headers.host) {
+    send(res, 403, { error: 'origen no permès' }); return false;
+  }
+  if (!READS[p] && req.method !== 'POST') { send(res, 405, { error: 'cal POST' }); return false; }
+  return true;
 }
 
 var share = require('./share.js')(luna, send);
@@ -151,6 +170,7 @@ http.createServer(function (req, res) {
   }
 
   if (p.indexOf('/share/') === 0) return share.serve(req, res, p.slice(7));
+  if (p.indexOf('/api/') === 0 && !apiGuard(req, res, p)) return;
   if (p === '/api/upload') return share.upload(req, res, q);
   if (p === '/api/compartir') return share.compartir(req, res, q);
   // the Android share target is handled by sw.js; reaching the server means it is not running

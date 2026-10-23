@@ -73,7 +73,7 @@ module.exports = function (luna, send) {
       waiters.push(x);
     },
 
-    // GET /api/text?t=..[&replace=1][&enter=1] | ?del=<n> | ?enter=1
+    // POST /api/text?t=..[&replace=1][&enter=1] | ?del=<n> | ?enter=1
     // replace=1 swaps the whole field for t, so the phone can mirror its own input box as you type
     text: function (q, res) {
       function enter(r) {

@@ -132,7 +132,7 @@
     try {
       for (var i = 0; i < list.length; i++) names.push(await upload(list[i], i, list.length));
       status('Obrint a la TV…');
-      var r = await (await fetch('/api/share/show?f=' + encodeURIComponent(names.join('|')))).json();
+      var r = await (await fetch('/api/share/show?f=' + encodeURIComponent(names.join('|')), { method: 'POST' })).json();
       status(r.returnValue ? (names.length > 1 ? names.length + ' fitxers a la TV ✓' : 'A la TV ✓') : 'Error: ' + (r.errorText || r.error), r.returnValue ? 'ok' : 'err');
     } catch (e) { status('Error: ' + e.message, 'err'); }
     prog.style.display = 'none'; document.getElementById('fill').style.width = '0';
@@ -147,7 +147,7 @@
     var u = document.getElementById('u').value.trim(); if (!u) return;
     status('Obrint… (una web de vídeo pot trigar uns segons)');
     try {
-      var r = await (await fetch('/api/share/url?u=' + encodeURIComponent(u))).json();
+      var r = await (await fetch('/api/share/url?u=' + encodeURIComponent(u), { method: 'POST' })).json();
       if (r.returnValue) { status('A la TV ✓', 'ok'); document.getElementById('u').value = ''; }
       else status('Error: ' + (r.error || r.errorText), 'err');
     } catch (e) { status('Sense connexió amb la TV', 'err'); }
@@ -170,9 +170,9 @@
         d.addEventListener('click', async function (e) {
           if (e.target.className === 'del') {
             if (!confirm('Esborrar-lo de la TV?')) return;
-            await fetch('/api/share/delete?f=' + encodeURIComponent(f.file)); return refresh();
+            await fetch('/api/share/delete?f=' + encodeURIComponent(f.file), { method: 'POST' }); return refresh();
           }
-          var r2 = await (await fetch('/api/share/show?f=' + encodeURIComponent(f.file))).json();
+          var r2 = await (await fetch('/api/share/show?f=' + encodeURIComponent(f.file), { method: 'POST' })).json();
           status(r2.returnValue ? 'A la TV ✓' : 'Error', r2.returnValue ? 'ok' : 'err');
         });
         g.appendChild(d);
@@ -182,7 +182,7 @@
   }
   document.getElementById('all').addEventListener('click', async function () {
     var photos = recentFiles.filter(function (f) { return f.type === 'photo'; }).map(function (f) { return f.file; });
-    var r = await (await fetch('/api/share/show?f=' + encodeURIComponent(photos.join('|')))).json();
+    var r = await (await fetch('/api/share/show?f=' + encodeURIComponent(photos.join('|')), { method: 'POST' })).json();
     status(r.returnValue ? 'Passi de ' + photos.length + ' fotos a la TV ✓' : 'Error', r.returnValue ? 'ok' : 'err');
   });
   refresh();

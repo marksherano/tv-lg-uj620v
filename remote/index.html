@@ -166,7 +166,7 @@
   var st = document.getElementById('st');
   function api(path) {
     if (navigator.vibrate) navigator.vibrate(15);
-    return fetch('/api/' + path).then(function (r) { return r.json(); }).then(function (j) {
+    return fetch('/api/' + path, { method: 'POST' }).then(function (r) { return r.json(); }).then(function (j) {
       if (j.returnValue === false || j.error) { status('Error: ' + (j.errorText || j.error), true); }
       return j;
     }).catch(function () { status('Sense connexió amb la TV', true); });
@@ -216,14 +216,14 @@
   function mirror() {
     if (busy) { again = true; return Promise.resolve(); }
     busy = true; again = false;
-    return fetch('/api/text?replace=1&t=' + encodeURIComponent(t.value)).catch(function () {})
+    return fetch('/api/text?replace=1&t=' + encodeURIComponent(t.value), { method: 'POST' }).catch(function () {})
       .then(function () { busy = false; if (again) return mirror(); });
   }
   t.addEventListener('input', mirror);
   function enter() {
     if (navigator.vibrate) navigator.vibrate(15);
     (busy ? new Promise(function (ok) { var i = setInterval(function () { if (!busy) { clearInterval(i); ok(); } }, 50); }) : Promise.resolve())
-      .then(function () { return fetch('/api/text?enter=1'); })
+      .then(function () { return fetch('/api/text?enter=1', { method: 'POST' }); })
       .then(function () { t.value = ''; });
   }
   document.getElementById('send').addEventListener('click', enter);
