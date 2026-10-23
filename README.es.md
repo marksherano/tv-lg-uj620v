@@ -28,7 +28,7 @@ Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada 
 | [`pantalla/`](pantalla) | **Pantalla** — app de la TV que muestra lo que se envía desde el móvil: fotos (pase automático) y vídeos (incluido HEVC `.mov` del iPhone). |
 | [`arrencada/`](arrencada) | **Arrencada** — app invisible que la TV abre sola al encenderse y que activa los servicios de Homebrew Channel (telnet, ssh, mando…) sin tener que abrirlo. |
 | [`tvlinks/`](tvlinks) | **tvlinks** — servicio para un ordenador de casa siempre encendido (Linux) que, con yt-dlp, convierte enlaces de páginas de vídeo (RTVE, clips de Atresplayer, autonómicas, Vimeo…) en la dirección directa que la TV puede reproducir (el contenido con DRM no funciona). También enciende la TV desde el móvil. |
-| [`tvtool/`](tvtool) | Herramientas para el ordenador (Python): consola root por telnet, subir archivos, depurar apps por CDP, script de limpieza (*debloat*). |
+| [`tvtool/`](tvtool) | Herramientas para el ordenador (Python): instalador en un solo paso (`install.py`), consola root por telnet, subir archivos, depurar apps por CDP, script de limpieza (*debloat*). |
 | [`build/make_ipk.py`](build/make_ipk.py) | Empaqueta una carpeta de app en un `.ipk` instalable. |
 
 ![Brillo+](docs/brillo.png)
@@ -74,19 +74,31 @@ reiniciar) y **no actualices el firmware**: el root podría desaparecer y quizá
 
 - TV LG con webOS 3.x rooteada y Homebrew Channel (telnet root en el puerto 23).
 - En el ordenador: Python 3 con `websocket-client` y `Pillow`.
-- Las herramientas usan la IP de la variable de entorno `TV_IP`:
+- Las herramientas usan la IP de la variable de entorno `TV_IP` (si no está, `192.168.1.37`):
+
+| Consola | Orden |
+|---|---|
+| PowerShell | `$env:TV_IP = "192.168.1.37"` |
+| CMD | `set TV_IP=192.168.1.37` |
+| Bash (Linux, macOS, Git Bash) | `export TV_IP=192.168.1.37` |
+
+## Instalar
+
+Una sola orden empaqueta, sube e instala lo que le digas, y es igual en cualquier consola:
 
 ```bash
-export TV_IP=192.168.1.37
+python tvtool/install.py brillo cat3
 ```
 
-## Construir e instalar una app
+| Nombre | Qué instala |
+|---|---|
+| `brillo` | Brillo+ y su servicio de programación (`init.d/brillo`) |
+| `cat3`, `jellyfin`, `pantalla` | La app correspondiente |
+| `arrencada` | Arrencada; la primera vez guarda una copia de `/var/lib/eim` y la registra como entrada |
+| `remote` | El mando web en `/media/developer/remote/` y su `init.d/remote` (el `config.json` de la TV no se toca); lo arranca |
+| `debloat` | El script de limpieza en `init.d/debloat`; se aplica al reiniciar |
 
-```bash
-python build/make_ipk.py brillo build/brillo.ipk
-MSYS_NO_PATHCONV=1 python tvtool/push.py build/brillo.ipk /tmp/app.ipk
-python tvtool/tsh.py 'luna-send -w 20000 -i luna://com.webos.appInstallService/dev/install "{\"id\":\"cat.brillo.plus\",\"ipkUrl\":\"/tmp/app.ipk\",\"subscribe\":true}"' 30
-```
+Para volver a instalar una app con cambios, sube antes el `version` de su `appinfo.json`.
 
 Las apps nuevas no aparecen solas en la barra de inicio si ya la has editado: hay que añadir
 `<appid>_default` a la lista `com.webos.launcher.appordering:1` de db8 (como
@@ -109,17 +121,7 @@ apagados con el mando.
   `org.webosbrew.hbchannel.service/autostart`, que es lo que hace la app de Homebrew Channel.
 - Si `restart sam` (de `debloat`) cierra la app que se había abierto, la vuelve a abrir. El registro queda en `/tmp/arrencada.log`.
 
-Instalación (una vez):
-
-```bash
-python build/make_ipk.py arrencada build/arrencada.ipk
-MSYS_NO_PATHCONV=1 python tvtool/push.py build/arrencada.ipk /tmp/app.ipk
-python tvtool/tsh.py 'luna-send -w 20000 -i luna://com.webos.appInstallService/dev/install "{\"id\":\"cat.arrencada\",\"ipkUrl\":\"/tmp/app.ipk\",\"subscribe\":true}"' 30
-python tvtool/tsh.py 'cp -a /var/lib/eim /var/lib/webosbrew/eim.backup; luna-send -n 1 luna://com.webos.service.eim/addDevice "{\"appId\":\"cat.arrencada\",\"pigImage\":\"\",\"mvpdIcon\":\"\"}"'
-```
-
-Para quitarla: `umount /var/lib/eim; cp -a /var/lib/webosbrew/eim.backup/. /var/lib/eim/; rm -rf /var/lib/webosbrew/eim`,
-desinstalar `cat.arrencada` y reiniciar.
+Se instala con `python tvtool/install.py arrencada` (para quitarla, ver [Desinstalar y recuperar](#desinstalar-y-recuperar)).
 
 | Archivo | Instalado en la TV como |
 |---|---|
@@ -128,6 +130,36 @@ desinstalar `cat.arrencada` y reiniciar.
 | [`remote/remote-init`](remote/remote-init) | `/var/lib/webosbrew/init.d/remote` — arranca el mando web |
 
 Para deshacer cualquier cambio: borra el archivo correspondiente de `init.d` y reinicia la TV.
+
+## Desinstalar y recuperar
+
+Nada de este proyecto toca el firmware: las apps son apps de desarrollador normales y los scripts de
+arranque solo hacen cambios que desaparecen al reiniciar. Todo se deshace con `--remove`:
+
+```bash
+python tvtool/install.py --remove brillo cat3 jellyfin pantalla remote debloat arrencada
+```
+
+| Qué | Qué hace `--remove` | Qué queda |
+|---|---|---|
+| Apps | Las desinstala; `brillo` también quita `init.d/brillo` | Nada (los perfiles de Brillo+ de `/media/developer/brillo/` se pueden borrar a mano) |
+| `remote` | Para el servidor y borra `/media/developer/remote/` e `init.d/remote` | Los archivos compartidos de `/media/developer/share/` |
+| `debloat` | Borra `init.d/debloat`; **hay que reiniciar** para que vuelvan las apps y los dominios bloqueados | LivePlus y la cookie de anuncios quedan apagados; se vuelven a activar en la configuración de la TV |
+| `arrencada` | Desmonta `/var/lib/eim`, devuelve la copia `/var/lib/webosbrew/eim.backup` y desinstala la app; **hay que reiniciar** | Nada |
+
+Si algo va mal:
+
+- **La TV arranca pero no hay telnet (puerto 23).** El script de Homebrew Channel no se ha ejecutado:
+  abre la app **Homebrew Channel** y vuelve a probar. Si tienes Arrencada, mira `/tmp/arrencada.log` una vez dentro.
+- **Una app no se abre o se queda en negro.** Vuelve a instalarla o desinstálala; no afecta a nada más.
+- **La TV hace cosas raras después de arrancar.** Entra por telnet, quita los scripts de
+  `/var/lib/webosbrew/init.d/` de uno en uno y reinicia cada vez para encontrar al culpable, con
+  `luna-send -n 1 luna://com.webos.service.tvpower/power/reboot '{"reason":"reset"}'` (la orden `reboot` no hace nada en esta TV).
+- **Homebrew Channel ha desaparecido** (actualización de firmware, app Developer Mode de LG…).
+  Las apps de este proyecto dejan de funcionar pero la TV sigue bien; vuelve a rootearla
+  (ver [Cómo rootear la TV](#cómo-rootear-la-tv)).
+- **Para quitar también el root y Homebrew Channel**, desinstálalo todo como arriba y sigue las
+  instrucciones de [webosbrew.org](https://www.webosbrew.org/).
 
 ## Compartir desde el móvil
 

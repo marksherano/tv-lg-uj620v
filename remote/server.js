@@ -57,6 +57,14 @@ function apiGuard(req, res, p) {
   return true;
 }
 
+// DNS rebinding: a site can point its own name at the TV's IP, and then Origin and Host match.
+// Only names a LAN would use are accepted, so such a page cannot reach the API or read /share/.
+function lanHost(h) {
+  h = String(h || '').toLowerCase().replace(/:\d+$/, '');
+  return !h || /^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.charAt(0) === '[' || h.indexOf('.') < 0 ||
+    /\.(local|lan|home|internal|home\.arpa)$/.test(h);
+}
+
 var share = require('./share.js')(luna, send);
 var stats = require('./stats.js')(luna, send);
 var kbd = require('./kbd.js')(luna, send);
@@ -152,6 +160,7 @@ function state(cb) {
 
 http.createServer(function (req, res) {
   var u = require('url').parse(req.url, true), q = u.query, p = u.pathname;
+  if (!lanHost(req.headers.host)) return send(res, 403, { error: 'nom no permès' });
 
   if (PAGES[p]) {
     return fs.readFile(path.join(__dirname, PAGES[p]), function (err, data) {
