@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ca">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#111318">
-<title>Envia a la TV</title>
+<title data-t>Envia a la TV</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="manifest" href="/manifest.json">
@@ -49,57 +49,63 @@
   details + details { margin-top: 10px; }
   .chk { margin-top: 8px; font-size: 14px; }
   .chk.ok { color: #6bdc8c; } .chk.err { color: #ffb36b; }
+  .langsel { margin: 26px 0 0; text-align: center; }
+  .langsel select { font: inherit; font-size: 14px; color: #c8ccd4; background: #1f232b; border: 0; border-radius: 10px; padding: 8px 12px; }
 </style>
+<script src="/i18n.js"></script>
 </head>
 <body>
 <main>
-  <header><a href="/">‹ Comandament</a><h1>Envia a la TV</h1></header>
+  <header><a href="/" data-t>‹ Comandament</a><h1 data-t>Envia a la TV</h1></header>
 
   <div class="big">
-    <label class="btn"><span>🖼</span>Fotos<input id="fPhotos" type="file" accept="image/*" multiple></label>
-    <label class="btn"><span>🎬</span>Vídeo<input id="fVideo" type="file" accept="video/*"></label>
+    <label class="btn"><span>🖼</span><b style="font-weight:inherit" data-t>Fotos</b><input id="fPhotos" type="file" accept="image/*" multiple></label>
+    <label class="btn"><span>🎬</span><b style="font-weight:inherit" data-t>Vídeo</b><input id="fVideo" type="file" accept="video/*"></label>
   </div>
   <div id="prog"><div class="bar"><div class="fill" id="fill"></div></div><div class="txt" id="ptxt"></div></div>
   <div id="st"></div>
 
-  <h2>Enllaç</h2>
-  <div class="row"><input id="u" type="url" placeholder="YouTube, 3Cat, RTVE, Atresplayer…" enterkeyhint="go"><button id="go">Obre</button></div>
+  <h2 data-t>Enllaç</h2>
+  <div class="row"><input id="u" type="url" placeholder="YouTube, 3Cat, RTVE, Atresplayer…" enterkeyhint="go"><button id="go" data-t>Obre</button></div>
 
-  <h2>Enviats recentment <span class="muted" id="free"></span></h2>
+  <h2><span data-t>Enviats recentment</span> <span class="muted" id="free"></span></h2>
   <div class="grid" id="recent"></div>
-  <button id="all">▶ Passi de totes les fotos</button>
-  <p class="muted">Toca una miniatura per tornar-la a mostrar. Els fitxers s'esborren sols al cap de 7 dies.</p>
+  <button id="all" data-t>▶ Passi de totes les fotos</button>
+  <p class="muted" data-t>Toca una miniatura per tornar-la a mostrar. Els fitxers s'esborren sols al cap de 7 dies.</p>
 
-  <h2>Des del menú Compartir del mòbil</h2>
+  <h2 data-t>Des del menú Compartir del mòbil</h2>
   <details id="dAndroid">
-    <summary>Android: «Comandament» al menú Compartir</summary>
+    <summary data-t>Android: «Comandament» al menú Compartir</summary>
     <ol>
-      <li>A Chrome, obre <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> (copia-ho i enganxa-ho a la barra d'adreces),
+      <li data-th>A Chrome, obre <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code> (copia-ho i enganxa-ho a la barra d'adreces),
         escriu-hi <code class="origin"></code>, posa-ho a <b>Enabled</b> i toca <b>Relaunch</b>.
         <span class="muted">Cal perquè la TV no té HTTPS, i sense això Chrome no deixa instal·lar la pàgina.</span></li>
-      <li>Torna a aquesta pàgina i, al menú <b>⋮</b>, tria <b>Instal·la l'aplicació</b> (o <b>Afegeix a la pantalla d'inici → Instal·la</b>).</li>
-      <li>Ara, a Galeria, YouTube, el navegador o qualsevol app: <b>Compartir → Comandament</b>. Les fotos i els vídeos es pugen aquí amb la barra de progrés; els enllaços s'obren directament.</li>
+      <li data-th>Torna a aquesta pàgina i, al menú <b>⋮</b>, tria <b>Instal·la l'aplicació</b> (o <b>Afegeix a la pantalla d'inici → Instal·la</b>).</li>
+      <li data-th>Ara, a Galeria, YouTube, el navegador o qualsevol app: <b>Compartir → Comandament</b>. Les fotos i els vídeos es pugen aquí amb la barra de progrés; els enllaços s'obren directament.</li>
     </ol>
     <div class="chk" id="swChk"></div>
   </details>
   <details>
-    <summary>iPhone: drecera «Envia a la TV»</summary>
+    <summary data-t>iPhone: drecera «Envia a la TV»</summary>
     <ol>
-      <li>Obre l'app <b>Dreceres</b> i crea'n una de nova amb el nom <b>Envia a la TV</b>.</li>
-      <li>A la informació de la drecera (ⓘ), activa <b>Mostrar al full de compartir</b> i deixa-hi <b>Imatges</b>, <b>Fitxers multimèdia</b>, <b>URL</b>, <b>Pàgines web del Safari</b> i <b>Text</b>.</li>
-      <li>Afegeix l'acció <b>Repetir amb cada</b> sobre l'<b>Entrada de la drecera</b>.</li>
-      <li>Dins el bucle, afegeix <b>Obtenir contingut de l'URL</b> amb:
+      <li data-th>Obre l'app <b>Dreceres</b> i crea'n una de nova amb el nom <b>Envia a la TV</b>.</li>
+      <li data-th>A la informació de la drecera (ⓘ), activa <b>Mostrar al full de compartir</b> i deixa-hi <b>Imatges</b>, <b>Fitxers multimèdia</b>, <b>URL</b>, <b>Pàgines web del Safari</b> i <b>Text</b>.</li>
+      <li data-th>Afegeix l'acció <b>Repetir amb cada</b> sobre l'<b>Entrada de la drecera</b>.</li>
+      <li data-th>Dins el bucle, afegeix <b>Obtenir contingut de l'URL</b> amb:
         <ul>
           <li>URL: <code id="sc"></code></li>
           <li>Mètode: <b>POST</b> · Cos de la sol·licitud: <b>Fitxer</b> → <b>Element repetit</b></li>
         </ul></li>
-      <li>Desa-la. Ara, a Fotos, Safari o YouTube → Compartir → <b>Envia a la TV</b>. Si n'envies unes quantes, surten totes al mateix passi.</li>
+      <li data-th>Desa-la. Ara, a Fotos, Safari o YouTube → Compartir → <b>Envia a la TV</b>. Si n'envies unes quantes, surten totes al mateix passi.</li>
     </ol>
-    <p class="muted">La TV no obre fotos HEIC: si l'iPhone les fa així, a Configuració → Càmera → Formats, tria <b>Més compatible</b>.</p>
+    <p class="muted" data-th>La TV no obre fotos HEIC: si l'iPhone les fa així, a Configuració → Càmera → Formats, tria <b>Més compatible</b>.</p>
   </details>
-  <p class="muted">Funciona quan el mòbil és a la wifi de casa i el comandament de la TV està en marxa.</p>
+  <p class="muted" data-t>Funciona quan el mòbil és a la wifi de casa i el comandament de la TV està en marxa.</p>
+
+  <div class="langsel"><select id="lang" aria-label="Idioma / Language"></select></div>
 </main>
 <script>
+  translatePage(); langPicker();
   var st = document.getElementById('st');
   function status(t, cls) { st.textContent = t; st.className = cls || ''; }
   document.getElementById('sc').textContent = location.origin + '/api/compartir';
@@ -114,13 +120,13 @@
         if (!e.lengthComputable) return;
         var pct = ((i + e.loaded / e.total) / n) * 100;
         document.getElementById('fill').style.width = pct + '%';
-        document.getElementById('ptxt').textContent = 'Pujant ' + (i + 1) + ' de ' + n + ' · ' + Math.round(e.loaded / 1048576) + ' / ' + Math.round(e.total / 1048576) + ' MB';
+        document.getElementById('ptxt').textContent = T('Pujant {0} de {1} · {2} / {3} MB', i + 1, n, Math.round(e.loaded / 1048576), Math.round(e.total / 1048576));
       };
       x.onload = function () {
         var j; try { j = JSON.parse(x.responseText); } catch (e) { j = {}; }
-        if (x.status === 200 && j.file) ok(j.file); else ko(new Error(j.error || ('error ' + x.status)));
+        if (x.status === 200 && j.file) ok(j.file); else ko(new Error(j.error || T('error {0}', x.status)));
       };
-      x.onerror = function () { ko(new Error('sense connexió amb la TV')); };
+      x.onerror = function () { ko(new Error(T('sense connexió amb la TV'))); };
       x.send(file);
     });
   }
@@ -131,10 +137,10 @@
     var names = [];
     try {
       for (var i = 0; i < list.length; i++) names.push(await upload(list[i], i, list.length));
-      status('Obrint a la TV…');
+      status(T('Obrint a la TV…'));
       var r = await (await fetch('/api/share/show?f=' + encodeURIComponent(names.join('|')), { method: 'POST' })).json();
-      status(r.returnValue ? (names.length > 1 ? names.length + ' fitxers a la TV ✓' : 'A la TV ✓') : 'Error: ' + (r.errorText || r.error), r.returnValue ? 'ok' : 'err');
-    } catch (e) { status('Error: ' + e.message, 'err'); }
+      status(r.returnValue ? (names.length > 1 ? T('{0} fitxers a la TV ✓', names.length) : T('A la TV ✓')) : T('Error: {0}', r.errorText || r.error), r.returnValue ? 'ok' : 'err');
+    } catch (e) { status(T('Error: {0}', e.message), 'err'); }
     prog.style.display = 'none'; document.getElementById('fill').style.width = '0';
     refresh();
   }
@@ -145,12 +151,12 @@
 
   async function openUrl() {
     var u = document.getElementById('u').value.trim(); if (!u) return;
-    status('Obrint… (una web de vídeo pot trigar uns segons)');
+    status(T('Obrint… (una web de vídeo pot trigar uns segons)'));
     try {
       var r = await (await fetch('/api/share/url?u=' + encodeURIComponent(u), { method: 'POST' })).json();
-      if (r.returnValue) { status('A la TV ✓', 'ok'); document.getElementById('u').value = ''; }
-      else status('Error: ' + (r.error || r.errorText), 'err');
-    } catch (e) { status('Sense connexió amb la TV', 'err'); }
+      if (r.returnValue) { status(T('A la TV ✓'), 'ok'); document.getElementById('u').value = ''; }
+      else status(T('Error: {0}', r.error || r.errorText), 'err');
+    } catch (e) { status(T('Sense connexió amb la TV'), 'err'); }
   }
   document.getElementById('go').addEventListener('click', openUrl);
   document.getElementById('u').addEventListener('keydown', function (e) { if (e.key === 'Enter') openUrl(); });
@@ -160,7 +166,7 @@
     try {
       var r = await (await fetch('/api/share/list')).json();
       recentFiles = r.files || [];
-      document.getElementById('free').textContent = r.freeMB != null ? '· ' + r.freeMB + ' MB lliures' : '';
+      document.getElementById('free').textContent = r.freeMB != null ? T('· {0} MB lliures', r.freeMB) : '';
       var g = document.getElementById('recent'); g.innerHTML = '';
       recentFiles.forEach(function (f) {
         var d = document.createElement('div'); d.className = 'it';
@@ -169,21 +175,21 @@
         d.querySelector('.nm').textContent = f.file.replace(/^\d+-/, '');
         d.addEventListener('click', async function (e) {
           if (e.target.className === 'del') {
-            if (!confirm('Esborrar-lo de la TV?')) return;
+            if (!confirm(T('Esborrar-lo de la TV?'))) return;
             await fetch('/api/share/delete?f=' + encodeURIComponent(f.file), { method: 'POST' }); return refresh();
           }
           var r2 = await (await fetch('/api/share/show?f=' + encodeURIComponent(f.file), { method: 'POST' })).json();
-          status(r2.returnValue ? 'A la TV ✓' : 'Error', r2.returnValue ? 'ok' : 'err');
+          status(T(r2.returnValue ? 'A la TV ✓' : 'Error'), r2.returnValue ? 'ok' : 'err');
         });
         g.appendChild(d);
       });
       document.getElementById('all').style.display = recentFiles.some(function (f) { return f.type === 'photo'; }) ? '' : 'none';
-    } catch (e) { status('Sense connexió amb la TV', 'err'); }
+    } catch (e) { status(T('Sense connexió amb la TV'), 'err'); }
   }
   document.getElementById('all').addEventListener('click', async function () {
     var photos = recentFiles.filter(function (f) { return f.type === 'photo'; }).map(function (f) { return f.file; });
     var r = await (await fetch('/api/share/show?f=' + encodeURIComponent(photos.join('|')), { method: 'POST' })).json();
-    status(r.returnValue ? 'Passi de ' + photos.length + ' fotos a la TV ✓' : 'Error', r.returnValue ? 'ok' : 'err');
+    status(r.returnValue ? T('Passi de {0} fotos a la TV ✓', photos.length) : T('Error'), r.returnValue ? 'ok' : 'err');
   });
   refresh();
 
@@ -191,10 +197,10 @@
   var swChk = document.getElementById('swChk');
   if ('serviceWorker' in navigator && window.isSecureContext) {
     navigator.serviceWorker.register('/sw.js').then(function () {
-      swChk.textContent = "✓ Chrome ja tracta la TV com a segura: ja la pots instal·lar (pas 2)."; swChk.className = 'chk ok';
+      swChk.textContent = T('✓ Chrome ja tracta la TV com a segura: ja la pots instal·lar (pas 2).'); swChk.className = 'chk ok';
     }).catch(function (e) { swChk.textContent = '✗ ' + e.message; swChk.className = 'chk err'; });
   } else {
-    swChk.textContent = '✗ Aquest navegador encara no tracta la TV com a segura (pas 1).'; swChk.className = 'chk err';
+    swChk.textContent = T('✗ Aquest navegador encara no tracta la TV com a segura (pas 1).'); swChk.className = 'chk err';
   }
 
   async function shared() {
@@ -204,7 +210,7 @@
     if (q.get('u')) { document.getElementById('u').value = q.get('u'); return openUrl(); }
     if (q.get('compartit') === 'sw') {
       document.getElementById('dAndroid').open = true;
-      return status("El menú Compartir no ha pogut fer servir l'app: torna a fer el pas 2.", 'err');
+      return status(T("El menú Compartir no ha pogut fer servir l'app: torna a fer el pas 2."), 'err');
     }
     var files = [];
     try {
@@ -215,7 +221,7 @@
       }
       await caches.delete('compartit');
     } catch (e) { /* no cache */ }
-    if (!files.length) return status('No ha arribat cap foto, vídeo ni enllaç que la TV pugui obrir.', 'err');
+    if (!files.length) return status(T('No ha arribat cap foto, vídeo ni enllaç que la TV pugui obrir.'), 'err');
     sendFiles(files);
   }
   shared();

@@ -16,7 +16,8 @@ var PAGES = { '/': 'index.html', '/index.html': 'index.html', '/envia': 'envia.h
 // static files besides the page (icons for the browser tab / phone home screen)
 var STATIC = {
   '/icon-32.png': 'image/png', '/icon-180.png': 'image/png', '/icon-192.png': 'image/png',
-  '/icon-512.png': 'image/png', '/manifest.json': 'application/manifest+json', '/sw.js': 'application/javascript'
+  '/icon-512.png': 'image/png', '/manifest.json': 'application/manifest+json', '/sw.js': 'application/javascript',
+  '/i18n.js': 'application/javascript'
 };
 
 var KEYS = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'ENTER', 'BACK', 'HOME', 'EXIT', 'MENU', 'INFO',
@@ -51,9 +52,9 @@ var READS = { '/api/share/list': 1, '/api/stats': 1, '/api/status': 1, '/api/kb'
 function apiGuard(req, res, p) {
   var from = req.headers.origin || req.headers.referer;
   if (from && require('url').parse(from).host !== req.headers.host) {
-    send(res, 403, { error: 'origen no permès' }); return false;
+    send(res, 403, { error: T('origen no permès') }); return false;
   }
-  if (!READS[p] && req.method !== 'POST') { send(res, 405, { error: 'cal POST' }); return false; }
+  if (!READS[p] && req.method !== 'POST') { send(res, 405, { error: T('cal POST') }); return false; }
   return true;
 }
 
@@ -65,6 +66,7 @@ function lanHost(h) {
     /\.(local|lan|home|internal|home\.arpa)$/.test(h);
 }
 
+var msgs = require('./msgs.js'), T = msgs.T;
 var share = require('./share.js')(luna, send);
 var stats = require('./stats.js')(luna, send);
 var kbd = require('./kbd.js')(luna, send);
@@ -92,7 +94,7 @@ function hhmm(ms) {
 function sleepMsg(ms) {
   var m = Math.round(ms / 60000);
   var dur = m < 60 ? m + ' min' : Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + m % 60 + ' min' : '');
-  return "⏻ La TV s'apagarà d'aquí a " + dur + ' (a les ' + hhmm(Date.now() + ms) + ')';
+  return T("⏻ La TV s'apagarà d'aquí a {0} (a les {1})", dur, hhmm(Date.now() + ms));
 }
 
 function cancelCustom() {
@@ -102,7 +104,8 @@ function cancelCustom() {
 function startCustom(ms) {
   cancelCustom();
   var c = custom = { end: Date.now() + ms };
-  if (ms > 90000) c.warn = setTimeout(function () { toast("⏻ La TV s'apagarà d'aquí a 1 minut"); }, ms - 60000);
+  var warn = T("⏻ La TV s'apagarà d'aquí a 1 minut");   // in the language of whoever set the timer
+  if (ms > 90000) c.warn = setTimeout(function () { toast(warn); }, ms - 60000);
   c.off = setTimeout(function () {
     custom = null;
     // POWER toggles: only press it if the TV is still on (it may have been turned off by hand)
@@ -160,7 +163,8 @@ function state(cb) {
 
 http.createServer(function (req, res) {
   var u = require('url').parse(req.url, true), q = u.query, p = u.pathname;
-  if (!lanHost(req.headers.host)) return send(res, 403, { error: 'nom no permès' });
+  msgs.use(req);
+  if (!lanHost(req.headers.host)) return send(res, 403, { error: T('nom no permès') });
 
   if (PAGES[p]) {
     return fs.readFile(path.join(__dirname, PAGES[p]), function (err, data) {
@@ -173,6 +177,11 @@ http.createServer(function (req, res) {
   if (STATIC[p]) {
     return fs.readFile(path.join(__dirname, p.slice(1)), function (err, data) {
       if (err) { res.writeHead(404); return res.end(); }
+      if (p === '/manifest.json') {   // the installed app takes its name in the phone's language
+        var mf = JSON.parse(data);
+        mf.name = T(mf.name); mf.short_name = T(mf.short_name); mf.description = T(mf.description); mf.lang = msgs.lang();
+        data = JSON.stringify(mf);
+      }
       res.writeHead(200, { 'Content-Type': STATIC[p], 'Cache-Control': /\.png$/.test(p) ? 'max-age=86400' : 'no-cache' });
       res.end(data);
     });
@@ -193,13 +202,13 @@ http.createServer(function (req, res) {
 
   if (p === '/api/key') {
     var k = String(q.k || '').toUpperCase();
-    if (KEYS.indexOf(k) < 0) return send(res, 400, { error: 'tecla desconeguda' });
+    if (KEYS.indexOf(k) < 0) return send(res, 400, { error: T('tecla desconeguda') });
     return luna('luna://com.webos.service.networkinput/sendSpecialKey', { key: k }, function (r) { send(res, 200, r); });
   }
 
   if (p === '/api/launch') {
     var id = String(q.id || '');
-    if (!/^[a-zA-Z0-9._-]{1,80}$/.test(id)) return send(res, 400, { error: 'id invàlid' });
+    if (!/^[a-zA-Z0-9._-]{1,80}$/.test(id)) return send(res, 400, { error: T('id invàlid') });
     return luna('luna://com.webos.applicationManager/launch', { id: id }, function (r) { send(res, 200, r); });
   }
 
@@ -216,10 +225,10 @@ http.createServer(function (req, res) {
   if (p === '/api/msg') {
     var txt = String(q.t || '').trim().slice(0, 300)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    if (!txt) return send(res, 400, { error: 'missatge buit' });
+    if (!txt) return send(res, 400, { error: T('missatge buit') });
     if (q.mode === 'alert') {
       return luna('luna://com.webos.notification/createAlert', {
-        sourceId: 'webosbrew', message: '<b>📱 Missatge</b><br/>' + txt, buttons: [{ label: "D'acord" }]
+        sourceId: 'webosbrew', message: '<b>' + T('📱 Missatge') + '</b><br/>' + txt, buttons: [{ label: T("D'acord") }]
       }, function (r) { send(res, 200, r); }, 'com.webos.service.secondscreen.gateway');
     }
     return luna('luna://com.webos.notification/createToast', { sourceId: 'webosbrew', message: txt },
@@ -228,7 +237,7 @@ http.createServer(function (req, res) {
 
   if (p === '/api/energy') {
     var e = String(q.v || '');
-    if (ENERGY.indexOf(e) < 0) return send(res, 400, { error: 'valor invàlid' });
+    if (ENERGY.indexOf(e) < 0) return send(res, 400, { error: T('valor invàlid') });
     return setSetting('picture', 'energySaving', e, function (r) { send(res, 200, r); });
   }
 
@@ -237,7 +246,7 @@ http.createServer(function (req, res) {
     var mins = String(q.m || ''), ms = 0;
     if (q.at) ms = msUntil(String(q.at));
     else if (SLEEP.indexOf(mins) < 0 && /^\d{1,3}$/.test(mins) && +mins >= 1 && +mins <= 720) ms = mins * 60000;
-    if (SLEEP.indexOf(mins) < 0 && !ms) return send(res, 400, { error: 'valor invàlid' });
+    if (SLEEP.indexOf(mins) < 0 && !ms) return send(res, 400, { error: T('valor invàlid') });
     // off first, so choosing the same time again restarts the countdown
     cancelCustom();
     return setSetting('time', 'sleepTimer', 'off', function () {
@@ -247,7 +256,7 @@ http.createServer(function (req, res) {
         return send(res, 200, { returnValue: true });
       }
       if (mins === 'off') {
-        toast("⏻ Temporitzador d'apagada cancel·lat");
+        toast(T("⏻ Temporitzador d'apagada cancel·lat"));
         return send(res, 200, { returnValue: true });
       }
       setSetting('time', 'sleepTimer', mins, function (r) {

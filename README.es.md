@@ -1,6 +1,6 @@
 # tv-lg-uj620v
 
-[Català](README.md) · **Castellano**
+[English](README.md) · [Català](README.ca.md) · **Castellano**
 
 Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada con
 [Homebrew Channel](https://github.com/webosbrew/webos-homebrew-channel).
@@ -39,7 +39,18 @@ Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada 
 
 <img src="docs/mobil.png" alt="Mando web en el móvil: mando con el aviso del teclado, Enviar a la TV, Estadísticas y Estado de la TV" width="830">
 
-Las interfaces de las apps están en catalán.
+## Idiomas
+
+Las apps y el mando web están en **catalán, castellano e inglés**. Empiezan en el idioma de la TV
+(o del móvil), o en inglés si no es ninguno de estos, y recuerdan el que elijas:
+
+| App | Dónde se cambia |
+|---|---|
+| Brillo+ | Fila **Idioma**, al final de la columna derecha (◀ ▶) |
+| 3Cat Lite | Última pestaña de la barra de arriba (OK) |
+| Jellyfin Lite | Pestaña **Ajustes** → **Idioma** |
+| Mando web | Selector al pie de cada página; los avisos que salen en la TV siguen el idioma del móvil |
+| Pantalla | Usa el idioma del móvil que envía las fotos |
 
 ## Cómo rootear la TV
 
@@ -164,7 +175,7 @@ Si algo va mal:
 ## Compartir desde el móvil
 
 - **Android**: la página del mando es una PWA con `share_target`, y una vez instalada aparece como
-  «Comandament» en el menú Compartir (fotos, vídeos y enlaces). Como la TV no tiene HTTPS, antes hay
+  «Mando» en el menú Compartir (fotos, vídeos y enlaces). Como la TV no tiene HTTPS, antes hay
   que añadir su dirección en `chrome://flags/#unsafely-treat-insecure-origin-as-secure` en Chrome. Los
   pasos están en `/envia`.
 - **iPhone**: un atajo «Envia a la TV» que manda cada elemento compartido a `POST /api/compartir`.
@@ -216,6 +227,8 @@ capítulo (o cuando acaba), propone el siguiente con una cuenta atrás de 10 s.
 - Las apps de Homebrew pueden ejecutar órdenes como root con `luna://org.webosbrew.hbchannel.service/exec`.
 - API pública de 3Cat: `api.3cat.cat/videos`, `api.3cat.cat/programestv`, `api.3cat.cat/v2/graellatvfutur` (programación) y
   `api-media.3cat.cat/pvideo/media.jsp` (MP4 para los vídeos, HLS para los directos, subtítulos VTT).
+- Textos: cada app tiene un `i18n.js` con el mismo núcleo pequeño (`T()`, `translatePage()`) y sus
+  tablas de castellano e inglés; el código conserva los textos en catalán como claves.
 
 ## Licencia
 

@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ca">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#111318">
-<title>Estadístiques de la TV</title>
+<title data-t>Estadístiques de la TV</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="manifest" href="/manifest.json">
@@ -40,41 +40,47 @@
   td:last-child, td:nth-child(2) { text-align: right; color: #8b93a1; white-space: nowrap; }
   .muted { color: #8b93a1; font-size: 13px; line-height: 1.45; }
   #err { color: #ff7676; }
+  .langsel { margin: 26px 0 0; text-align: center; }
+  .langsel select { font: inherit; font-size: 14px; color: #c8ccd4; background: #1f232b; border: 0; border-radius: 10px; padding: 8px 12px; }
 </style>
+<script src="/i18n.js"></script>
 </head>
 <body>
 <main>
-  <header><a href="/">‹ Comandament</a><h1>Estadístiques</h1></header>
+  <header><a href="/" data-t>‹ Comandament</a><h1 data-t>Estadístiques</h1></header>
   <div id="err"></div>
 
   <div class="tiles">
-    <div class="tile"><div class="v" id="tToday">–</div><div class="l">Avui</div></div>
-    <div class="tile"><div class="v" id="tWeek">–</div><div class="l">Últims 7 dies</div></div>
-    <div class="tile"><div class="v" id="tAvg">–</div><div class="l">Mitjana diària</div></div>
+    <div class="tile"><div class="v" id="tToday">–</div><div class="l" data-t>Avui</div></div>
+    <div class="tile"><div class="v" id="tWeek">–</div><div class="l" data-t>Últims 7 dies</div></div>
+    <div class="tile"><div class="v" id="tAvg">–</div><div class="l" data-t>Mitjana diària</div></div>
   </div>
 
-  <h2>Hores per dia</h2>
+  <h2 data-t>Hores per dia</h2>
   <div class="chart" id="chart"></div>
 
-  <h2>Per app</h2>
+  <h2 data-t>Per app</h2>
   <div class="seg" id="seg">
-    <button data-d="1">Avui</button><button data-d="7" class="on">7 dies</button><button data-d="30">30 dies</button>
+    <button data-d="1" data-t>Avui</button><button data-d="7" class="on" data-t>7 dies</button><button data-d="30" data-t>30 dies</button>
   </div>
   <div id="apps"></div>
 
-  <h2>Obertures des que tens la TV</h2>
+  <h2 data-t>Obertures des que tens la TV</h2>
   <table id="launch"></table>
 
   <p class="muted" id="note"></p>
+
+  <div class="langsel"><select id="lang" aria-label="Idioma / Language"></select></div>
 </main>
 <script>
+  translatePage(); langPicker();
   var FRIENDLY = {
     'com.webos.app.livetv': 'TV en directe', 'com.webos.app.hdmi1': 'HDMI 1', 'com.webos.app.hdmi2': 'HDMI 2',
     'com.webos.app.hdmi3': 'HDMI 3', 'com.webos.app.home': 'Menú d\'inici', 'com.webos.app.browser': 'Navegador',
     'com.webos.app.photovideo': 'Foto i vídeo', 'com.webos.app.tvguide': 'Guia de TV', 'desconeguda': 'Altres'
   };
   var data;
-  function name(id) { return FRIENDLY[id] || (data.names && data.names[id]) || id; }
+  function name(id) { return T(FRIENDLY[id] || '') || (data.names && data.names[id]) || id; }
   function hm(min) {
     if (!min) return '0 min';
     var h = Math.floor(min / 60), m = min % 60;
@@ -99,7 +105,7 @@
     document.getElementById('chart').innerHTML = ds.map(function (d) {
       var t = total(days[key(d)]);
       return '<div class="col' + (key(d) === todayK ? ' today' : '') + '"><div class="n">' + (t ? (t / 60).toFixed(1) : '') +
-        '</div><div class="b' + (t ? '' : ' z') + '" style="height:' + (t / max * 100) + '%"></div><div class="d">' + wd[d.getDay()] + '<br>' + d.getDate() + '</div></div>';
+        '</div><div class="b' + (t ? '' : ' z') + '" style="height:' + (t / max * 100) + '%"></div><div class="d">' + T(wd[d.getDay()]) + '<br>' + d.getDate() + '</div></div>';
     }).join('');
 
     var per = {};
@@ -108,7 +114,7 @@
     document.getElementById('apps').innerHTML = list.length ? list.slice(0, 12).map(function (a) {
       return '<div class="app"><div>' + esc(name(a)) + '</div><div class="t">' + hm(per[a]) + '</div><div class="bar"><div style="width:' +
         (per[a] / top * 100) + '%"></div></div></div>';
-    }).join('') : '<p class="muted">Encara no hi ha dades per a aquest període.</p>';
+    }).join('') : '<p class="muted">' + T('Encara no hi ha dades per a aquest període.') + '</p>';
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
@@ -123,14 +129,13 @@
     render(7);
     document.getElementById('launch').innerHTML = (j.launches || []).slice(0, 15).map(function (l) {
       var d = new Date(l.last);
-      return '<tr><td>' + esc(name(l.id)) + '</td><td>' + l.count.toLocaleString('ca') + ' cops</td><td>' +
+      return '<tr><td>' + esc(name(l.id)) + '</td><td>' + T('{0} cops', l.count.toLocaleString(LANG)) + '</td><td>' +
         d.getDate() + '/' + (d.getMonth() + 1) + '</td></tr>';
     }).join('');
     var since = new Date(j.since);
-    document.getElementById('note').textContent = 'El temps d\'ús es compta des del ' + since.getDate() + '/' + (since.getMonth() + 1) + '/' +
-      since.getFullYear() + ', minut a minut, només amb la pantalla encesa i mentre el comandament està en marxa. ' +
-      'Les obertures són el comptador propi de la TV; la darrera columna és l\'última vegada.';
-  }).catch(function () { document.getElementById('err').textContent = 'Sense connexió amb la TV'; });
+    document.getElementById('note').textContent = T("El temps d'ús es compta des del {0}, minut a minut, només amb la pantalla encesa i mentre el comandament està en marxa. Les obertures són el comptador propi de la TV; la darrera columna és l'última vegada.",
+      since.getDate() + '/' + (since.getMonth() + 1) + '/' + since.getFullYear());
+  }).catch(function () { document.getElementById('err').textContent = T('Sense connexió amb la TV'); });
 </script>
 </body>
 </html>

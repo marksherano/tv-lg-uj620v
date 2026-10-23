@@ -2,6 +2,7 @@
    Launch params: { items: [{ url, type: 'photo'|'video', name }], start: 0 } */
 (function () {
   'use strict';
+  translatePage();
 
   var SLIDE_MS = 8000;
   var items = [], idx = 0, slideTimer = null, paused = false, barTimer = null, front = 0;
@@ -31,18 +32,18 @@
   function updBar() {
     var it = cur(); if (!it) return;
     $('title').textContent = it.name || (it.type === 'video' ? 'Vídeo' : 'Foto');
-    var n = items.length > 1 ? (idx + 1) + ' de ' + items.length : '';
+    var n = items.length > 1 ? T('{0} de {1}', idx + 1, items.length) : '';
     if (it.type === 'video') {
       var d = video.duration || 0;
       $('prog').className = '';
       $('fill').style.width = (d ? video.currentTime / d * 100 : 0) + '%';
-      $('info').textContent = [n, fmtT(video.currentTime) + (d ? ' / ' + fmtT(d) : ''), video.paused ? '❚❚ En pausa' : '']
+      $('info').textContent = [n, fmtT(video.currentTime) + (d ? ' / ' + fmtT(d) : ''), video.paused ? T('❚❚ En pausa') : '']
         .filter(Boolean).join('  ·  ');
-      $('help').textContent = 'OK pausa · ◀ ▶ 10 s' + (items.length > 1 ? ' · ▲ ▼ anterior / següent' : '') + ' · ENRERE sortir';
+      $('help').textContent = T('OK pausa · ◀ ▶ 10 s') + (items.length > 1 ? T(' · ▲ ▼ anterior / següent') : '') + T(' · ENRERE sortir');
     } else {
       $('prog').className = 'hidden';
-      $('info').textContent = [n, items.length > 1 ? (paused ? '❚❚ Passi aturat' : '▶ Passi automàtic') : ''].filter(Boolean).join('  ·  ');
-      $('help').textContent = (items.length > 1 ? '◀ ▶ anterior / següent · OK atura el passi · ' : '') + 'ENRERE sortir';
+      $('info').textContent = [n, items.length > 1 ? T(paused ? '❚❚ Passi aturat' : '▶ Passi automàtic') : ''].filter(Boolean).join('  ·  ');
+      $('help').textContent = (items.length > 1 ? T('◀ ▶ anterior / següent · OK atura el passi · ') : '') + T('ENRERE sortir');
     }
   }
   setInterval(function () { if (cur() && cur().type === 'video' && $('bar').className === '') updBar(); }, 1000);
@@ -69,7 +70,7 @@
         $('p' + (1 - front)).className = 'layer photo';
         schedule();
       };
-      img.onerror = function () { $('msg').textContent = 'No s\'ha pogut obrir la foto'; schedule(); };
+      img.onerror = function () { $('msg').textContent = T("No s'ha pogut obrir la foto"); schedule(); };
       img.src = it.url;
     }
     showBar();
@@ -81,14 +82,16 @@
 
   video.addEventListener('ended', function () { if (items.length > 1) show(idx + 1); else showBar(); });
   video.addEventListener('error', function () {
-    $('msg').textContent = 'Aquesta TV no pot reproduir aquest vídeo';
+    $('msg').textContent = T('Aquesta TV no pot reproduir aquest vídeo');
     if (items.length > 1) slideTimer = setTimeout(function () { show(idx + 1); }, 3000);
   });
   video.addEventListener('playing', function () { $('msg').textContent = ''; });
-  video.addEventListener('waiting', function () { $('msg').textContent = 'Carregant…'; });
+  video.addEventListener('waiting', function () { $('msg').textContent = T('Carregant…'); });
 
   function load() {
     var p = params();
+    // the web remote sends its own language, so messages match the phone that sent the photos
+    if (LANG_NAMES[p.lang] && p.lang !== LANG) { setLang(p.lang); translatePage(); }
     if (p.items && p.items.length) {
       items = p.items; paused = false;
       show(p.start || 0);

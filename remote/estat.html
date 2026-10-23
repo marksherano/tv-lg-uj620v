@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ca">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#111318">
-<title>Estat de la TV</title>
+<title data-t>Estat de la TV</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="manifest" href="/manifest.json">
@@ -38,49 +38,55 @@
   summary { cursor: pointer; font-size: 15px; margin-bottom: 8px; }
   .muted { color: #8b93a1; font-size: 13px; line-height: 1.45; }
   #err { color: #ff7676; }
+  .langsel { margin: 26px 0 0; text-align: center; }
+  .langsel select { font: inherit; font-size: 14px; color: #c8ccd4; background: #1f232b; border: 0; border-radius: 10px; padding: 8px 12px; }
 </style>
+<script src="/i18n.js"></script>
 </head>
 <body>
 <main>
-  <header><a href="/">‹ Comandament</a><h1>Estat de la TV</h1></header>
+  <header><a href="/" data-t>‹ Comandament</a><h1 data-t>Estat de la TV</h1></header>
   <div id="err"></div>
 
   <div class="tiles">
-    <div class="tile" id="tPower"><div class="v">–</div><div class="l">Pantalla</div></div>
-    <div class="tile" id="tTemp"><div class="v">–</div><div class="l">Temperatura</div></div>
-    <div class="tile" id="tUp"><div class="v">–</div><div class="l">Encesa fa</div></div>
+    <div class="tile" id="tPower"><div class="v">–</div><div class="l" data-t>Pantalla</div></div>
+    <div class="tile" id="tTemp"><div class="v">–</div><div class="l" data-t>Temperatura</div></div>
+    <div class="tile" id="tUp"><div class="v">–</div><div class="l" data-t>Encesa fa</div></div>
   </div>
 
-  <h2>Sistema</h2>
+  <h2 data-t>Sistema</h2>
   <div id="meters"></div>
   <table id="sys"></table>
 
-  <h2>Serveis</h2>
+  <h2 data-t>Serveis</h2>
   <table id="svc"></table>
 
-  <h2>Apps instal·lades a mà</h2>
+  <h2 data-t>Apps instal·lades a mà</h2>
   <table id="apps"></table>
 
-  <h2>Registres</h2>
-  <details><summary>Arrencada (<code>/tmp/arrencada.log</code>)</summary><pre id="logA"></pre></details>
-  <details><summary>Comandament (<code>/tmp/remote.log</code>)</summary><pre id="logR"></pre></details>
-  <p class="muted">S'actualitza cada 10 segons. Una càrrega del sistema al voltant de 24 és normal en aquesta TV: la compten processos del firmware que esperen sense gastar CPU.</p>
+  <h2 data-t>Registres</h2>
+  <details><summary data-th>Arrencada (<code>/tmp/arrencada.log</code>)</summary><pre id="logA"></pre></details>
+  <details><summary data-th>Comandament (<code>/tmp/remote.log</code>)</summary><pre id="logR"></pre></details>
+  <p class="muted" data-t>S'actualitza cada 10 segons. Una càrrega del sistema al voltant de 24 és normal en aquesta TV: la compten processos del firmware que esperen sense gastar CPU.</p>
+
+  <div class="langsel"><select id="lang" aria-label="Idioma / Language"></select></div>
 </main>
 <script>
+  translatePage(); langPicker();
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function dur(s) {
     var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
     return d ? d + ' d ' + h + ' h' : h ? h + ' h ' + m + ' min' : m + ' min';
   }
-  function tile(id, v, cls) { var t = $(id); t.className = 'tile ' + (cls || ''); t.querySelector('.v').textContent = v; }
+  function tile(id, v, cls) { var t = $(id); t.className = 'tile ' + (cls || ''); t.querySelector('.v').textContent = T(v); }
   function meter(label, used, total, unit) {
     var pct = total ? Math.round(used / total * 100) : 0;
     var cls = pct >= 90 ? 'bad' : pct >= 75 ? 'warn' : '';
-    return '<div class="meter ' + cls + '"><div class="top"><span>' + esc(label) + '</span><span>' + used + ' / ' + total + ' ' + unit +
+    return '<div class="meter ' + cls + '"><div class="top"><span>' + esc(T(label)) + '</span><span>' + used + ' / ' + total + ' ' + unit +
       ' (' + pct + ' %)</span></div><div class="bar"><div style="width:' + pct + '%"></div></div></div>';
   }
-  function row(k, v, cls) { return '<tr><td>' + esc(k) + '</td><td class="' + (cls || '') + '">' + esc(v) + '</td></tr>'; }
+  function row(k, v, cls) { return '<tr><td>' + esc(T(k)) + '</td><td class="' + (cls || '') + '">' + esc(T(v)) + '</td></tr>'; }
   function yes(b, on, off) { return b == null ? ['—', 'na'] : b ? [on || '✓ en marxa', 'ok'] : [off || '✗ aturat', 'ko']; }
   var POWER = { 'Active': ['Encesa', ''], 'Screen Off': ['Apagada (so)', 'warn'], 'Screen Saver': ['Estalvi', 'warn'],
     'Active Standby': ['En espera', 'warn'] };
@@ -96,21 +102,21 @@
 
       var m = s.mem, h = meter('Memòria', m.totalMB - m.availMB, m.totalMB, 'MB');
       if (m.swapTotalMB) h += meter('Intercanvi (swap)', m.swapUsedMB, m.swapTotalMB, 'MB');
-      (s.disks || []).forEach(function (d) { h += meter('Disc: ' + (DISK[d.name] || d.name), d.usedMB, d.totalMB, 'MB'); });
+      (s.disks || []).forEach(function (d) { h += meter(T('Disc: {0}', T(DISK[d.name] || d.name)), d.usedMB, d.totalMB, 'MB'); });
       $('meters').innerHTML = h;
 
       var boot = new Date(s.now - s.uptime * 1000);
       $('sys').innerHTML =
         (s.system ? row('Model', s.system.model) + row('Firmware', s.system.firmware + ' · webOS ' + s.system.webos) : '') +
         row('App en primer pla', s.app || '—') +
-        row('Engegada', boot.toLocaleString('ca-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) +
+        row('Engegada', boot.toLocaleString(LANG, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) +
         row('Càrrega (1 / 5 / 15 min)', s.load.join(' / ')) +
-        row('Xarxa', s.net ? (s.net.type === 'cable' ? 'Cable' : 'Wi-Fi ' + (s.net.ssid || '')) + ' · ' + s.net.ip : 'sense connexió', s.net ? '' : 'ko') +
+        row('Xarxa', s.net ? (s.net.type === 'cable' ? T('Cable') : 'Wi-Fi ' + (s.net.ssid || '')) + ' · ' + s.net.ip : T('sense connexió'), s.net ? '' : 'ko') +
         row('Internet', s.net && s.net.internet ? '✓' : '✗', s.net && s.net.internet ? 'ok' : 'ko') +
         row('Fitxers enviats', s.share.files + ' (' + s.share.MB + ' MB)');
 
       var r = s.services.remote, sv = '';
-      sv += row('Comandament (aquest servidor)', 'fa ' + dur(r.uptime) + ' · ' + r.rssMB + ' MB · node ' + r.node, 'ok');
+      sv += row('Comandament (aquest servidor)', T('fa {0} · {1} MB · node {2}', dur(r.uptime), r.rssMB, r.node), 'ok');
       var b = yes(s.services.brillo); sv += row('Horari de Brillo+', b[0], b[1]);
       var t = yes(s.services.tvlinks, '✓ respon', '✗ no respon');
       sv += row('Resolutor d\'enllaços (tvlinks)', s.services.tvlinks == null ? 'no configurat' : t[0], t[1]);
@@ -121,9 +127,9 @@
       $('svc').innerHTML = sv;
 
       $('apps').innerHTML = s.apps.map(function (a) { return row(a.title + ' · ' + a.id, a.version); }).join('') || row('Cap', '');
-      $('logA').textContent = s.logs.arrencada || '(buit)';
-      $('logR').textContent = s.logs.remote || '(buit)';
-    }).catch(function () { $('err').textContent = 'Sense connexió amb la TV'; });
+      $('logA').textContent = s.logs.arrencada || T('(buit)');
+      $('logR').textContent = s.logs.remote || T('(buit)');
+    }).catch(function () { $('err').textContent = T('Sense connexió amb la TV'); });
   }
   load(); setInterval(load, 10000);
 </script>

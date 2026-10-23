@@ -1,6 +1,7 @@
 /* 3Cat Lite — unofficial 3Cat client for old LG webOS TVs (Chromium 38: ES5 only). */
 (function () {
   'use strict';
+  translatePage();
 
   var API = 'https://api.3cat.cat/';
   var MEDIA = 'https://api-media.3cat.cat/pvideo/media.jsp?media=video&versio=vast&profile=tv&format=dm&idint=';
@@ -16,7 +17,7 @@
     { id: 'cr', name: 'Catalunya Ràdio', logo: 'https://statics.3cat.cat/img/logos/catradio_colorBgNegre.svg' }
   ];
   var TABS = ['Inici', 'Directes', 'Guia', 'Últims vídeos', 'Programes', 'Cerca'];
-  var HOME = 0, LIVE = 1, GUIDE = 2, LATEST = 3, PROGRAMS = 4, SEARCH = 5;
+  var HOME = 0, LIVE = 1, GUIDE = 2, LATEST = 3, PROGRAMS = 4, SEARCH = 5, LANGTAB = 6;   // LANGTAB: language switch, not a view
   // TV schedule codes used by api.3cat.cat/v2/graellatvfutur, keyed by live channel id
   var EPG = [
     { live: 'tv3', code: 'CAD_TV3', name: 'TV3' },
@@ -160,8 +161,8 @@
   function msg(t) { $('msg').textContent = t || ''; }
 
   function renderTabs() {
-    $('tabs').innerHTML = TABS.map(function (t, i) {
-      return '<div class="tab' + (i === tab ? ' sel' : '') + (area === 'tabs' && i === tabFocus ? ' focus' : '') + '">' + esc(t) + '</div>';
+    $('tabs').innerHTML = TABS.concat([LANG_NAMES[LANG]]).map(function (t, i) {
+      return '<div class="tab' + (i === tab ? ' sel' : '') + (area === 'tabs' && i === tabFocus ? ' focus' : '') + '">' + esc(T(t)) + '</div>';
     }).join('');
   }
 
@@ -171,18 +172,18 @@
       return '<div class="epg' + (it.now ? ' now' : '') + (it.past ? ' past' : '') + '">' +
         '<div class="et">' + esc(it.time) + '</div>' +
         '<div class="eb"><div class="en">' + esc(it.title) + '</div><div class="ed">' + esc(it.desc) + '</div></div>' +
-        '<div class="ea">' + (it.now ? '● ARA · OK directe' : (it.prog ? 'OK capítols' : '')) + '</div></div>';
+        '<div class="ea">' + (it.now ? T('● ARA · OK directe') : (it.prog ? T('OK capítols') : '')) + '</div></div>';
     }
     if (it.kind === 'letter') return '<div class="letter">' + esc(it.title) + '</div>';
     if (it.kind === 'fav') {
       var on = isFav(it.id);
       return '<div class="card act"><div class="img"><div class="big">' + (on ? '★' : '☆') + '</div></div>' +
-        '<div class="t">' + (on ? 'Als meus programes' : 'Afegeix als meus programes') + '</div>' +
-        '<div class="s">' + (on ? 'OK per treure-ho' : 'Sortirà a la pestanya Inici') + '</div></div>';
+        '<div class="t">' + T(on ? 'Als meus programes' : 'Afegeix als meus programes') + '</div>' +
+        '<div class="s">' + T(on ? 'OK per treure-ho' : 'Sortirà a la pestanya Inici') + '</div></div>';
     }
     var live = it.kind === 'live';
     return '<div class="card' + (live ? ' live' : '') + '"><div class="img" data-img="' + esc(it.img || '') + '">' +
-      (live ? '<div class="badge">EN DIRECTE</div>' : '') +
+      (live ? '<div class="badge">' + T('EN DIRECTE') + '</div>' : '') +
       (it.dur ? '<div class="dur">' + esc(it.dur) + '</div>' : '') +
       (it.prog ? '<div class="prog"><div style="width:' + Math.round(it.prog * 100) + '%"></div></div>' : '') + '</div>' +
       '<div class="t">' + esc(it.title) + '</div><div class="s">' + esc(it.sub || '') + '</div></div>';
@@ -271,12 +272,12 @@
         return { kind: 'video', id: e.id, title: e.title, img: e.img, sub: e.sub, dur: e.dur,
                  prog: e.len ? e.pos / e.len : 0 };
       }));
-      c[0].header = 'Continuar veient';
+      c[0].header = T('Continuar veient');
       rows = rows.concat(c);
     }
     if (favs.length) {
       var f = chunk(favs.map(function (p) { return { kind: 'prog', id: p[0], title: p[1], img: p[2] }; }));
-      f[0].header = 'Els meus programes';
+      f[0].header = T('Els meus programes');
       rows = rows.concat(f);
     }
     return rows;
@@ -285,7 +286,7 @@
   function showHome() {
     var rows = homeRows();
     setRoot({ title: '', rows: rows, home: true });
-    if (!rows.length) msg('Aquí sortiran els vídeos que deixis a mitges i els programes que marquis amb ☆');
+    if (!rows.length) msg(T('Aquí sortiran els vídeos que deixis a mitges i els programes que marquis amb ☆'));
   }
 
   /* ---------- TV guide ---------- */
@@ -297,22 +298,22 @@
   function hm(t) { var d = new Date(t); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
   function guideChips() {
     var chips = EPG.map(function (c, i) { return { kind: 'chip', ch: i, title: c.name, sel: i === guideCh }; });
-    DAYS.forEach(function (d, i) { chips.push({ kind: 'chip', day: i, title: d, sel: i === guideDay, gap: i === 0 }); });
+    DAYS.forEach(function (d, i) { chips.push({ kind: 'chip', day: i, title: T(d), sel: i === guideDay, gap: i === 0 }); });
     return chips;
   }
   function showGuide(keepFocus) {
     var ch = EPG[guideCh], day = new Date(Date.now() + guideDay * 86400000);
     var date = pad(day.getDate()) + '/' + pad(day.getMonth() + 1) + '/' + day.getFullYear();
-    var v = { title: ch.name + ' · ' + DAYS[guideDay].toLowerCase() + ' ' + date, rows: [guideChips()], guide: true };
+    var v = { title: ch.name + ' · ' + T(DAYS[guideDay]).toLowerCase() + ' ' + date, rows: [guideChips()], guide: true };
     if (keepFocus) v.focus = keepFocus;
     setRoot(v);
-    msg('Carregant programació…');
+    msg(T('Carregant programació…'));
     getJSON(API + 'v2/graellatvfutur?_format=json&version=2.0&pagina=1&canal=' + ch.code + '&data_emissio=' + date,
       function (err, d) {
         if (view() !== v) return;
-        if (err || !d.resposta) return msg('No s\'ha pogut carregar la programació');
+        if (err || !d.resposta) return msg(T("No s'ha pogut carregar la programació"));
         var list = (d.resposta.items && d.resposta.items.item) || [], now = Date.now(), nowRow = 0;
-        msg(list.length ? '' : 'No hi ha programació per a aquest dia');
+        msg(list.length ? '' : T('No hi ha programació per a aquest dia'));
         var items = list.map(function (p, i) {
           var a = parseDate(p.data_emissio), b = i + 1 < list.length ? parseDate(list[i + 1].data_emissio) : a + 3600000;
           var prog = p.programes && p.programes[0];
@@ -337,15 +338,15 @@
 
   function showLive() {
     var items = CHANNELS.map(function (ch) {
-      return { kind: 'live', id: ch.id, title: ch.name, img: ch.logo, sub: 'Carregant…' };
+      return { kind: 'live', id: ch.id, title: ch.name, img: ch.logo, sub: T('Carregant…') };
     });
-    setRoot({ title: 'Canals en directe', rows: chunk(items) });
+    setRoot({ title: T('Canals en directe'), rows: chunk(items) });
     items.forEach(function (it) {
       getJSON(MEDIA + it.id, function (err, d) {
-        if (err || !d || !d.informacio) { it.sub = 'No disponible'; }
+        if (err || !d || !d.informacio) { it.sub = T('No disponible'); }
         else {
           var a = d.informacio.arafem;
-          it.sub = a ? 'Ara: ' + (a.titol_complet || a.programa) : '';
+          it.sub = a ? T('Ara: {0}', a.titol_complet || a.programa) : '';
           it.media = d;
         }
         if (it.el) it.el.querySelector('.s').textContent = it.sub;
@@ -357,13 +358,13 @@
     var page = 0, v = { title: title, rows: prefix ? [prefix] : [] };
     function load() {
       page++;
-      if (page === 1) msg('Carregant…');
+      if (page === 1) msg(T('Carregant…'));
       getJSON(API + 'videos?_format=json&version=2.0&items_pagina=' + PAGE + '&tipus_contingut=PPD&ordre=-data_publicacio&pagina=' +
               page + params, function (err, d) {
         if (view() !== v) return;
-        if (err) { msg('Error de connexió (' + err + ')'); return; }
+        if (err) { msg(T('Error de connexió ({0})', err)); return; }
         var r = d.resposta, items = (r.items && r.items.item) || [];
-        msg(page === 1 && !items.length ? 'No hi ha vídeos disponibles' : '');
+        msg(page === 1 && !items.length ? T('No hi ha vídeos disponibles') : '');
         if (page === 1) { v.rows = (prefix ? [prefix] : []).concat(chunk(items.map(videoCard))); renderGrid(); }
         else appendRows([items.map(videoCard)]);
         var p = r.paginacio || {};
@@ -375,7 +376,7 @@
   }
 
   function showLatest() {
-    var l = videoList('Últims capítols publicats', '');
+    var l = videoList(T('Últims capítols publicats'), '');
     setRoot(l.v); l.load();
   }
 
@@ -385,10 +386,10 @@
   }
 
   function showPrograms() {
-    setRoot({ title: 'Programes de la A a la Z', rows: [] });
-    msg('Carregant programes…');
+    setRoot({ title: T('Programes de la A a la Z'), rows: [] });
+    msg(T('Carregant programes…'));
     loadPrograms(function (err) {
-      if (err) { msg('Error de connexió (' + err + ')'); return; }
+      if (err) { msg(T('Error de connexió ({0})', err)); return; }
       msg('');
       var v = view(), letters = [], rows = [], groups = {}, order = [];
       programs.forEach(function (p) {
@@ -409,21 +410,21 @@
   }
 
   function showSearch() {
-    setRoot({ title: 'Escriu per cercar entre els programes', rows: [] });
+    setRoot({ title: T('Escriu per cercar entre els programes'), rows: [] });
     loadPrograms(function () { doSearch(); });
   }
   function doSearch() {
     if (!programs) return;
     var q = norm($('q').value).trim(), v = view();
-    if (!q) { v.rows = []; renderGrid(); msg('Prem OK per escriure'); return; }
+    if (!q) { v.rows = []; renderGrid(); msg(T('Prem OK per escriure')); return; }
     var words = q.split(/\s+/);
     var res = programs.filter(function (p) {
       var t = norm(p[1]);
       return words.every(function (w) { return t.indexOf(w) >= 0; });
     }).slice(0, 80);
-    msg(res.length ? '' : 'Cap programa coincideix amb «' + $('q').value + '»');
+    msg(res.length ? '' : T('Cap programa coincideix amb «{0}»', $('q').value));
     v.rows = chunk(res.map(progCard)); v.focus = { r: 0, c: 0 };
-    v.title = res.length + (res.length === 1 ? ' programa' : ' programes');
+    v.title = T(res.length === 1 ? '{0} programa' : '{0} programes', res.length);
     renderGrid();
   }
   $('q').addEventListener('input', doSearch);
@@ -459,7 +460,7 @@
       $('osdTime').textContent = fmtT(video.currentTime);
       $('osdDur').textContent = d ? fmtT(d) : '';
     }
-    $('osdState').textContent = video.paused ? '❚❚ En pausa' : '';
+    $('osdState').textContent = video.paused ? T('❚❚ En pausa') : '';
   }
   setInterval(function () { if (playing) { updOsd(); if (video.ended) onEnded(); } }, 1000);
 
@@ -469,7 +470,7 @@
     $('player').className = 'player';
     $('osdTitle').textContent = info.title;
     $('osdSub').textContent = info.sub || '';
-    $('spinner').textContent = 'Carregant…';
+    $('spinner').textContent = T('Carregant…');
     $('spinner').className = 'spinner';
     loadSource();
     showOsd();
@@ -489,7 +490,7 @@
   video.addEventListener('error', function () {
     if (!playing) return;
     if (++srcIdx < sources.length) return loadSource();
-    $('spinner').textContent = 'No s\'ha pogut reproduir aquest vídeo';
+    $('spinner').textContent = T("No s'ha pogut reproduir aquest vídeo");
     $('spinner').className = 'spinner';
   });
   // 'ended' sometimes comes late after seeking to the end: the OSD timer checks video.ended too
@@ -531,7 +532,7 @@
     $('upSub').textContent = p.next.sub || '';
     var tick = function () {
       if (upnext.left <= 0) return playNext();
-      $('upCount').textContent = 'Comença en ' + upnext.left-- + ' s';
+      $('upCount').textContent = T('Comença en {0} s', upnext.left--);
     };
     upnext.timer = setInterval(tick, 1000); tick();
     $('upnext').className = 'upnext';
@@ -546,7 +547,7 @@
     var n = playing && playing.next;
     stopUpnext();
     if (!n) return;
-    $('spinner').textContent = 'Carregant…'; $('spinner').className = 'spinner';
+    $('spinner').textContent = T('Carregant…'); $('spinner').className = 'spinner';
     playVideo(n);
   }
 
@@ -627,17 +628,17 @@
     subIdx = i; subs = []; showSub('');
     var tr = subTracks[i];
     save('subLang', tr ? tr.iso : 'off');
-    if (announce) toast(tr ? 'Subtítols: ' + tr.text : (subTracks.length ? 'Subtítols desactivats' : 'Aquest vídeo no té subtítols'));
+    if (announce) toast(tr ? T('Subtítols: {0}', tr.text) : T(subTracks.length ? 'Subtítols desactivats' : 'Aquest vídeo no té subtítols'));
     if (!tr) return;
     var want = playing;
     getText(tr.url, function (err, txt) {
       if (playing !== want || subIdx !== i) return;
-      if (err) return toast('No s\'han pogut carregar els subtítols');
+      if (err) return toast(T("No s'han pogut carregar els subtítols"));
       subs = parseVtt(txt);
     });
   }
   function cycleSub() {
-    if (!subTracks.length) return toast('Aquest vídeo no té subtítols');
+    if (!subTracks.length) return toast(T('Aquest vídeo no té subtítols'));
     selectSub(subIdx + 1 < subTracks.length ? subIdx + 1 : -1, true);
   }
 
@@ -647,26 +648,26 @@
       if (!(media instanceof Array)) media = media.url || [];
       order.forEach(function (g) { media.forEach(function (m) { if (m.geo === g && m.url) src.push({ url: m.url }); }); });
       media.forEach(function (m) { if (order.indexOf(m.geo) < 0 && (m.url || m.file)) src.push({ url: m.url || m.file }); });
-      if (!src.length) { msg('Aquest canal no està disponible ara'); return; }
+      if (!src.length) { msg(T('Aquest canal no està disponible ara')); return; }
       var a = d.informacio.arafem;
-      startPlayer({ live: true, title: it.title + ' · en directe', sub: a ? (a.titol_complet || a.programa) : '',
+      startPlayer({ live: true, title: T('{0} · en directe', it.title), sub: a ? (a.titol_complet || a.programa) : '',
                     arafem: a, sources: src });
     }
     if (it.media) return go(it.media);
-    getJSON(MEDIA + it.id, function (err, d) { if (err) return msg('Error de connexió'); go(d); });
+    getJSON(MEDIA + it.id, function (err, d) { if (err) return msg(T('Error de connexió')); go(d); });
   }
 
   function playVideo(it) {
-    msg('Carregant vídeo…');
+    msg(T('Carregant vídeo…'));
     getJSON(MEDIA + it.id, function (err, d) {
       msg('');
-      if (err || !d || !d.media) return msg('No s\'ha pogut obtenir el vídeo');
+      if (err || !d || !d.media) return msg(T("No s'ha pogut obtenir el vídeo"));
       var urls = d.media.url || [], src = [];
       ['720p', '480p', '360p'].forEach(function (q) {
         urls.forEach(function (u) { if (u.label === q && u.file) src.push({ url: u.file }); });
       });
       urls.forEach(function (u) { if (/\.mp4/.test(u.file) && !src.some(function (s) { return s.url === u.file; })) src.push({ url: u.file }); });
-      if (!src.length) return msg('Aquest vídeo només està en un format que aquesta TV no pot reproduir');
+      if (!src.length) return msg(T('Aquest vídeo només està en un format que aquesta TV no pot reproduir'));
       var cw = cwGet(it.id);
       var info = d.informacio || {};
       startPlayer({ id: it.id, title: it.title || info.titol || '', sub: it.sub || info.programa || '', img: it.img, dur: it.dur, sources: src,
@@ -676,7 +677,7 @@
       var pref = load('subLang', 'off'), idx = -1;
       subTracks.forEach(function (s, i) { if (s.iso === pref && idx < 0) idx = i; });
       selectSub(idx, false);
-      if (subTracks.length) toast(idx >= 0 ? 'Subtítols: ' + subTracks[idx].text + ' (▲ per canviar)' : 'Té subtítols: prem ▲ per activar-los');
+      if (subTracks.length) toast(idx >= 0 ? T('Subtítols: {0} (▲ per canviar)', subTracks[idx].text) : T('Té subtítols: prem ▲ per activar-los'));
     });
   }
 
@@ -731,7 +732,7 @@
         else if (it.kind === 'chip') return guideChip(it), true;
         else if (it.kind === 'epg') return guideOpen(it), true;
         else if (it.kind === 'fav') {
-          toast(toggleFav(it.id, it.title, it.img) ? 'Afegit als meus programes' : 'Tret dels meus programes');
+          toast(T(toggleFav(it.id, it.title, it.img) ? 'Afegit als meus programes' : 'Tret dels meus programes'));
           var keep = v.focus; renderGrid(); v.focus = keep; updateFocus(); return true;
         }
         break;
@@ -757,7 +758,12 @@
     }
     if (area === 'tabs') {
       if (k === 37) tabFocus = Math.max(0, tabFocus - 1);
-      else if (k === 39) tabFocus = Math.min(TABS.length - 1, tabFocus + 1);
+      else if (k === 39) tabFocus = Math.min(LANGTAB, tabFocus + 1);
+      else if (tabFocus === LANGTAB && (k === 13 || k === 40)) {
+        nextLang(); translatePage();
+        var keep = tab; openTab(keep); tabFocus = LANGTAB;
+        toast(T('Idioma: {0}', LANG_NAMES[LANG]));
+      }
       else if (k === 13) { if (tabFocus !== tab) openTab(tabFocus); else if (tab === SEARCH) area = 'search'; else if (view().rows.length) area = 'grid'; }
       else if (k === 40) {
         if (tabFocus !== tab) openTab(tabFocus);

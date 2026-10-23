@@ -13,7 +13,7 @@
     <div id="clock" class="clock"></div>
   </div>
   <div id="sub" class="sub"></div>
-  <div id="search" class="search hidden"><input id="q" type="text" placeholder="Cerca un programa…"></div>
+  <div id="search" class="search hidden"><input id="q" type="text" placeholder="Cerca un programa…" data-tp></div>
   <div id="viewport" class="viewport"><div id="grid" class="grid"></div></div>
   <div id="msg" class="msg"></div>
 </div>
@@ -25,18 +25,19 @@
     <div id="osdSub" class="osd-sub"></div>
     <div class="osd-bar"><div id="osdFill" class="osd-fill"></div></div>
     <div class="osd-row"><span id="osdTime"></span><span id="osdState"></span><span id="osdDur"></span></div>
-    <div class="osd-help">OK pausa · ◀ ▶ 10 s (mantén: 60 s) · ▲ subtítols · ENRERE sortir</div>
+    <div class="osd-help" data-t>OK pausa · ◀ ▶ 10 s (mantén: 60 s) · ▲ subtítols · ENRERE sortir</div>
   </div>
   <div id="subs" class="subs"></div>
   <div id="upnext" class="upnext hidden">
-    <div class="up-h">Següent capítol</div>
+    <div class="up-h" data-t>Següent capítol</div>
     <div id="upTitle" class="up-t"></div>
     <div id="upSub" class="up-s"></div>
     <div id="upCount" class="up-c"></div>
-    <div class="up-k">OK per començar-lo ara · ENRERE per sortir</div>
+    <div class="up-k" data-t>OK per començar-lo ara · ENRERE per sortir</div>
   </div>
-  <div id="spinner" class="spinner">Carregant…</div>
+  <div id="spinner" class="spinner" data-t>Carregant…</div>
 </div>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

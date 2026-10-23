@@ -67,7 +67,7 @@ def wake():
 
 
 WAKE_PAGE = '''<!DOCTYPE html>
-<html lang="ca"><head><meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#111318"><title>Encén la TV</title>
 <style>
@@ -79,29 +79,48 @@ button:disabled { opacity: .5; }
 #st { color: #9a9aa6; min-height: 2.5em; padding: 0 24px; }
 a { color: #4ea3ff; }
 </style></head><body>
-<h1>TV de casa</h1>
+<h1 id="h">TV de casa</h1>
 <button id="b">⏻</button>
-<div id="st">Prem el botó per encendre-la</div>
+<div id="st"></div>
 <script>
+// language of the phone (the remote's choice lives on another origin, so it is not visible here)
+var L = (navigator.language || '').slice(0, 2), D = {
+  es: { 'Encén la TV': 'Enciende la TV', 'TV de casa': 'TV de casa', 'Prem el botó per encendre-la': 'Pulsa el botón para encenderla',
+    'Encesa! Obrint el <a href="{0}">comandament</a>…': '¡Encendida! Abriendo el <a href="{0}">mando</a>…',
+    'No respon. Comprova que «Encén amb el mòbil» està activat al menú de la TV.': 'No responde. Comprueba que «Encender con el móvil» está activado en el menú de la TV.',
+    'Enviant…': 'Enviando…', 'Encenent la TV…': 'Encendiendo la TV…', 'Error de connexió': 'Error de conexión',
+    'Ja està encesa: <a href="{0}">obre el comandament</a>': 'Ya está encendida: <a href="{0}">abre el mando</a>',
+    "la TV encara no s'ha registrat (ha d'estar encesa un cop amb el comandament en marxa)": 'la TV todavía no se ha registrado (tiene que estar encendida una vez con el mando en marcha)' },
+  en: { 'Encén la TV': 'Turn on the TV', 'TV de casa': 'Home TV', 'Prem el botó per encendre-la': 'Press the button to turn it on',
+    'Encesa! Obrint el <a href="{0}">comandament</a>…': 'On! Opening the <a href="{0}">remote</a>…',
+    'No respon. Comprova que «Encén amb el mòbil» està activat al menú de la TV.': "It doesn't answer. Check that “Turn on via Mobile” is on in the TV menu.",
+    'Enviant…': 'Sending…', 'Encenent la TV…': 'Turning on the TV…', 'Error de connexió': 'Connection error',
+    'Ja està encesa: <a href="{0}">obre el comandament</a>': 'It is already on: <a href="{0}">open the remote</a>',
+    "la TV encara no s'ha registrat (ha d'estar encesa un cop amb el comandament en marxa)": 'the TV has not registered yet (it must be on once with the remote server running)' }
+}[L === 'ca' ? '' : L === 'es' ? 'es' : 'en'] || {};
+function T(s, a) { return (D[s] || s).replace('{0}', a); }
+document.documentElement.lang = D['TV de casa'] ? (L === 'es' ? 'es' : 'en') : 'ca';
+document.title = T('Encén la TV'); document.getElementById('h').textContent = T('TV de casa');
 var b = document.getElementById('b'), st = document.getElementById('st'), tv = null, tries = 0;
+st.textContent = T('Prem el botó per encendre-la');
 // this server checks whether the TV answers (browsers may block requests to other LAN hosts)
 function check(cb) { fetch('wake/tv', { cache: 'no-store' }).then(function (r) { return r.json(); })
   .then(function (j) { tv = j.tv; cb(j.on); }, function () { cb(false); }); }
 function poll() {
   check(function (on) {
-    if (on) { st.innerHTML = 'Encesa! Obrint el <a href="' + tv + '">comandament</a>…'; location.href = tv; return; }
-    if (++tries > 30) { b.disabled = false; st.textContent = 'No respon. Comprova que «Encén amb el mòbil» està activat al menú de la TV.'; return; }
+    if (on) { st.innerHTML = T('Encesa! Obrint el <a href="{0}">comandament</a>…', tv); location.href = tv; return; }
+    if (++tries > 30) { b.disabled = false; st.textContent = T('No respon. Comprova que «Encén amb el mòbil» està activat al menú de la TV.'); return; }
     setTimeout(poll, 2000);
   });
 }
 b.onclick = function () {
-  b.disabled = true; tries = 0; st.textContent = 'Enviant…';
+  b.disabled = true; tries = 0; st.textContent = T('Enviant…');
   fetch('wake', { method: 'POST' }).then(function (r) { return r.json(); }).then(function (j) {
-    if (j.error) { b.disabled = false; st.textContent = j.error; return; }
-    tv = j.tv; st.textContent = 'Encenent la TV…'; poll();
-  }, function () { b.disabled = false; st.textContent = 'Error de connexió'; });
+    if (j.error) { b.disabled = false; st.textContent = T(j.error); return; }
+    tv = j.tv; st.textContent = T('Encenent la TV…'); poll();
+  }, function () { b.disabled = false; st.textContent = T('Error de connexió'); });
 };
-check(function (on) { if (on) st.innerHTML = 'Ja està encesa: <a href="' + tv + '">obre el comandament</a>'; });
+check(function (on) { if (on) st.innerHTML = T('Ja està encesa: <a href="{0}">obre el comandament</a>', tv); });
 </script></body></html>'''
 
 

@@ -2,6 +2,7 @@
    Same view/grid/focus model as 3Cat Lite: a stack of views, each a list of rows of items. */
 (function () {
   'use strict';
+  translatePage();
 
   var VERSION = '1.1.0';
   var PAGE = 48;
@@ -47,13 +48,13 @@
     x.setRequestHeader('Authorization', authHeader());
     if (body) x.setRequestHeader('Content-Type', 'application/json');
     x.onload = function () {
-      if (x.status === 401 && S.token && !server) return logout('La sessió ha caducat: torna a entrar');
+      if (x.status === 401 && S.token && !server) return logout(T('La sessió ha caducat: torna a entrar'));
       if (x.status < 200 || x.status >= 300) return cb && cb('HTTP ' + x.status);
       var j = null;
-      if (x.responseText) { try { j = JSON.parse(x.responseText); } catch (e) { return cb && cb('resposta invàlida'); } }
+      if (x.responseText) { try { j = JSON.parse(x.responseText); } catch (e) { return cb && cb(T('resposta invàlida')); } }
       if (cb) cb(null, j);
     };
-    x.onerror = function () { if (cb) cb('sense connexió amb el servidor'); };
+    x.onerror = function () { if (cb) cb(T('sense connexió amb el servidor')); };
     x.ontimeout = function () { if (cb) cb('el servidor no respon'); };
     x.send(body ? JSON.stringify(body) : null);
   }
@@ -86,7 +87,7 @@
     return !m ? '' : m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + pad(m % 60);
   }
   function epCode(it) {
-    return (it.ParentIndexNumber != null ? 'T' + it.ParentIndexNumber : '') +
+    return (it.ParentIndexNumber != null ? T('T') + it.ParentIndexNumber : '') +
       (it.IndexNumber != null ? (it.ParentIndexNumber != null ? ' · ' : '') + 'E' + it.IndexNumber : '');
   }
   var WIDE = { Episode: 1, Video: 1, CollectionFolder: 1, UserView: 1, MusicVideo: 1, TvChannel: 1 };
@@ -125,7 +126,7 @@
 
   function renderTabs() {
     $('tabs').innerHTML = tabs.map(function (t, i) {
-      return '<div class="tab' + (i === tab ? ' sel' : '') + (area === 'tabs' && i === tabFocus ? ' focus' : '') + '">' + esc(t.name) + '</div>';
+      return '<div class="tab' + (i === tab ? ' sel' : '') + (area === 'tabs' && i === tabFocus ? ' focus' : '') + '">' + esc(T(t.name)) + '</div>';
     }).join('');
   }
 
@@ -263,18 +264,18 @@
         if (view() !== v) return;
         v.rows = [];
         parts.forEach(function (p) { if (p) v.rows = v.rows.concat(p); });
-        msg(v.rows.length ? '' : (err ? 'No es pot connectar amb el servidor (' + err + ')' : 'La biblioteca és buida'));
+        msg(v.rows.length ? '' : (err ? T('No es pot connectar amb el servidor ({0})', err) : T('La biblioteca és buida')));
         renderGrid();
       });
     }
-    msg('Carregant…');
-    section(0, 'Continuar veient', '/UserItems/Resume?' + qs({ userId: S.userId, Limit: 12, Fields: FIELDS, MediaTypes: 'Video' }),
+    msg(T('Carregant…'));
+    section(0, T('Continuar veient'), '/UserItems/Resume?' + qs({ userId: S.userId, Limit: 12, Fields: FIELDS, MediaTypes: 'Video' }),
       function (it) { return card(it, { shape: 'wide' }); });
-    section(1, 'Següents capítols', '/Shows/NextUp?' + qs({ UserId: S.userId, Limit: 8, Fields: FIELDS }),
+    section(1, T('Següents capítols'), '/Shows/NextUp?' + qs({ UserId: S.userId, Limit: 8, Fields: FIELDS }),
       function (it) { return card(it, { shape: 'wide' }); });
     libs.forEach(function (l, i) {
       if (l.CollectionType !== 'movies' && l.CollectionType !== 'tvshows') return;
-      section(2 + i, 'Novetats a ' + l.Name, '/Items/Latest?' + qs({ UserId: S.userId, ParentId: l.Id, Limit: 6, Fields: FIELDS }),
+      section(2 + i, T('Novetats a {0}', l.Name), '/Items/Latest?' + qs({ UserId: S.userId, ParentId: l.Id, Limit: 6, Fields: FIELDS }),
         function (it) { return card(it); });
     });
   }
@@ -282,11 +283,11 @@
   /* ---------- libraries and folders ---------- */
   function libraryView(lib, sortIdx) {
     var type = LIB_TYPES[lib.CollectionType];
-    var chips = SORTS.map(function (s, i) { return { kind: 'chip', act: 'sort', idx: i, title: s.t, sel: i === sortIdx }; });
+    var chips = SORTS.map(function (s, i) { return { kind: 'chip', act: 'sort', idx: i, title: T(s.t), sel: i === sortIdx }; });
     var v = { title: lib.Name, rows: [chips], lib: lib };
     var params = merge({ UserId: S.userId, ParentId: lib.Id, Fields: FIELDS, Limit: PAGE }, SORTS[sortIdx].p);
     if (type) { params.IncludeItemTypes = type; params.Recursive = true; }
-    pager(v, params, function (total) { v.title = lib.Name + ' · ' + total + (total === 1 ? ' títol' : ' títols'); });
+    pager(v, params, function (total) { v.title = T(total === 1 ? '{0} · {1} títol' : '{0} · {1} títols', lib.Name, total); });
     return v;
   }
 
@@ -294,13 +295,13 @@
   function pager(v, params, onTotal) {
     var start = 0;
     function more() {
-      if (!start) msg('Carregant…');
+      if (!start) msg(T('Carregant…'));
       get('/Items?' + qs(merge(params, { StartIndex: start })), function (err, d) {
         if (view() !== v) return;
-        if (err) return msg('Error: ' + err);
+        if (err) return msg(T('Error: {0}', err));
         var items = d.Items || [];
         if (!start) {
-          msg(items.length ? '' : 'Aquí no hi ha res');
+          msg(items.length ? '' : T('Aquí no hi ha res'));
           if (onTotal) onTotal(d.TotalRecordCount);
           v.rows = v.rows.slice(0, v.chips ? 1 : v.rows.length).concat(cardRows(items.map(function (it) { return card(it); })));
           renderGrid();
@@ -323,7 +324,7 @@
   function openSeries(series) {
     var v = { title: series.Name, rows: [], detail: detailHtml(series), series: series };
     v.reload = function () { stack.pop(); openSeries(series); };
-    pushView(v); area = 'grid'; msg('Carregant capítols…');
+    pushView(v); area = 'grid'; msg(T('Carregant capítols…'));
     if (!series.Overview) {
       get('/Items/' + series.Id + '?' + qs({ userId: S.userId }), function (err, d) {
         if (!err && view() === v) { v.detail = detailHtml(d); renderGrid(); }
@@ -331,15 +332,15 @@
     }
     get('/Shows/' + series.Id + '/Episodes?' + qs({ UserId: S.userId, Fields: 'Overview' }), function (err, d) {
       if (view() !== v) return;
-      if (err) return msg('Error: ' + err);
+      if (err) return msg(T('Error: {0}', err));
       msg('');
       var eps = d.Items || [], seasons = [], byId = {};
       eps.forEach(function (e) {
         var k = e.SeasonId || 's' + e.ParentIndexNumber;
-        if (!byId[k]) { byId[k] = { id: k, name: e.SeasonName || (e.ParentIndexNumber ? 'Temporada ' + e.ParentIndexNumber : 'Especials'), eps: [] }; seasons.push(byId[k]); }
+        if (!byId[k]) { byId[k] = { id: k, name: e.SeasonName || (e.ParentIndexNumber ? T('Temporada {0}', e.ParentIndexNumber) : T('Especials')), eps: [] }; seasons.push(byId[k]); }
         byId[k].eps.push(e);
       });
-      if (!seasons.length) return msg('Aquesta sèrie no té capítols');
+      if (!seasons.length) return msg(T('Aquesta sèrie no té capítols'));
       var next = null;
       eps.forEach(function (e) { if (!next && !(e.UserData && e.UserData.Played)) next = e; });
       v.seasons = seasons;
@@ -376,8 +377,8 @@
       return l.join(', ');
     };
     var a = langs('Audio'), su = langs('Subtitle');
-    if (a) out.push('Àudio: ' + a);
-    if (su) out.push('Subtítols: ' + su);
+    if (a) out.push(T('Àudio: {0}', a));
+    if (su) out.push(T('Subtítols: {0}', su));
     return out.join(' · ');
   }
   function detailHtml(it) {
@@ -399,14 +400,14 @@
     area = 'grid';
     get('/Items/' + item.Id + '?' + qs({ userId: S.userId }), function (err, it) {
       if (view() !== v) return;
-      if (err) return msg('Error: ' + err);
+      if (err) return msg(T('Error: {0}', err));
       var ud = it.UserData || {}, pos = (ud.PlaybackPositionTicks || 0) / 1e7, chips = [];
       if (pos > 0) {
-        chips.push({ kind: 'chip', act: 'play', pos: pos, big: true, title: '▶ Continua (' + fmtT(pos) + ')' });
-        chips.push({ kind: 'chip', act: 'play', pos: 0, title: 'Des del principi' });
-      } else chips.push({ kind: 'chip', act: 'play', pos: 0, big: true, title: '▶ Reprodueix' });
-      chips.push({ kind: 'chip', act: 'played', played: ud.Played, title: ud.Played ? 'Marca com a no vist' : '✓ Marca com a vist' });
-      if (it.Type === 'Episode' && it.SeriesId) chips.push({ kind: 'chip', act: 'series', title: 'Tots els capítols' });
+        chips.push({ kind: 'chip', act: 'play', pos: pos, big: true, title: T('▶ Continua ({0})', fmtT(pos)) });
+        chips.push({ kind: 'chip', act: 'play', pos: 0, title: T('Des del principi') });
+      } else chips.push({ kind: 'chip', act: 'play', pos: 0, big: true, title: T('▶ Reprodueix') });
+      chips.push({ kind: 'chip', act: 'played', played: ud.Played, title: T(ud.Played ? 'Marca com a no vist' : '✓ Marca com a vist') });
+      if (it.Type === 'Episode' && it.SeriesId) chips.push({ kind: 'chip', act: 'series', title: T('Tots els capítols') });
       chips.forEach(function (c) { c.it = it; });
       v.detail = detailHtml(it);
       v.rows = [chips];
@@ -416,8 +417,8 @@
 
   function setPlayed(it, played) {
     api(played ? 'POST' : 'DELETE', '/UserPlayedItems/' + it.Id + '?' + qs({ userId: S.userId }), null, function (err) {
-      if (err) return toast('No s\'ha pogut desar (' + err + ')');
-      toast(played ? 'Marcat com a vist' : 'Marcat com a no vist');
+      if (err) return toast(T("No s'ha pogut desar ({0})", err));
+      toast(T(played ? 'Marcat com a vist' : 'Marcat com a no vist'));
       if (view().reload) view().reload();
     });
   }
@@ -435,26 +436,26 @@
   /* ---------- search ---------- */
   var searchTimer;
   function showSearch() {
-    setRoot({ title: 'Escriu per cercar (amb el teclat de la TV o el del mòbil)', rows: [] });
+    setRoot({ title: T('Escriu per cercar (amb el teclat de la TV o el del mòbil)'), rows: [] });
     doSearch();
   }
   function doSearch() {
     var q = $('q').value.trim(), v = view();
-    if (!q) { v.rows = []; renderGrid(); msg('Prem OK per escriure'); return; }
-    msg('Cercant…');
+    if (!q) { v.rows = []; renderGrid(); msg(T('Prem OK per escriure')); return; }
+    msg(T('Cercant…'));
     get('/Items?' + qs({ UserId: S.userId, searchTerm: q, IncludeItemTypes: 'Movie,Series,Episode,BoxSet,Video',
       Recursive: true, Limit: 60, Fields: FIELDS }), function (err, d) {
       if (view() !== v || $('q').value.trim() !== q) return;
-      if (err) return msg('Error: ' + err);
-      var items = d.Items || [], groups = [['Pel·lícules', ['Movie', 'BoxSet', 'Video']], ['Sèries', ['Series']], ['Capítols', ['Episode']]];
+      if (err) return msg(T('Error: {0}', err));
+      var items = d.Items || [], groups = [[T('Pel·lícules'), ['Movie', 'BoxSet', 'Video']], [T('Sèries'), ['Series']], [T('Capítols'), ['Episode']]];
       v.rows = [];
       groups.forEach(function (g) {
         var c = items.filter(function (it) { return g[1].indexOf(it.Type) >= 0; }).map(function (it) { return card(it); });
         v.rows = v.rows.concat(cardRows(c, g[0]));
       });
       v.focus = { r: 0, c: 0 };
-      v.title = items.length + (items.length === 1 ? ' resultat' : ' resultats');
-      msg(items.length ? '' : 'No hi ha res que coincideixi amb «' + q + '»');
+      v.title = T(items.length === 1 ? '{0} resultat' : '{0} resultats', items.length);
+      msg(items.length ? '' : T('No hi ha res que coincideixi amb «{0}»', q));
       renderGrid();
     });
   }
@@ -463,11 +464,13 @@
   /* ---------- settings ---------- */
   function showSettings() {
     var br = load('jfbr', BITRATES[0].v);
-    var q = BITRATES.map(function (b) { return { kind: 'chip', act: 'bitrate', v: b.v, title: b.t, sel: b.v === br }; });
-    q.header = 'Qualitat màxima (si la xarxa va justa, el servidor converteix el vídeo a menys qualitat)';
-    var acc = [{ kind: 'chip', act: 'logout', title: 'Tanca la sessió' }];
-    acc.header = 'Compte';
-    setRoot({ title: 'Connectat a ' + S.server + ' com a ' + S.userName, rows: [q, acc] });
+    var q = BITRATES.map(function (b) { return { kind: 'chip', act: 'bitrate', v: b.v, title: T(b.t), sel: b.v === br }; });
+    q.header = T('Qualitat màxima (si la xarxa va justa, el servidor converteix el vídeo a menys qualitat)');
+    var lg = LANGS.map(function (l) { return { kind: 'chip', act: 'lang', v: l, title: LANG_NAMES[l], sel: l === LANG }; });
+    lg.header = T('Idioma');
+    var acc = [{ kind: 'chip', act: 'logout', title: T('Tanca la sessió') }];
+    acc.header = T('Compte');
+    setRoot({ title: T('Connectat a {0} com a {1}', S.server, S.userName), rows: [q, lg, acc] });
   }
 
   /* ---------- login ---------- */
@@ -500,10 +503,10 @@
   }
   function checkServer(cb) {
     var srv = normServer($('sServer').value);
-    if (!srv) { setupIdx = 0; setupFocus(); return smsg('Escriu l\'adreça del servidor Jellyfin'); }
-    smsg('Connectant amb ' + srv + '…');
+    if (!srv) { setupIdx = 0; setupFocus(); return smsg(T("Escriu l'adreça del servidor Jellyfin")); }
+    smsg(T('Connectant amb {0}…', srv));
     api('GET', '/System/Info/Public', null, function (err, d) {
-      if (err || !d || !d.Id) return smsg('No hi ha cap servidor Jellyfin a ' + srv + ' (' + (err || 'resposta estranya') + ')');
+      if (err || !d || !d.Id) return smsg(T('No hi ha cap servidor Jellyfin a {0} ({1})', srv, err || T('resposta estranya')));
       smsg('');
       $('sServer').value = srv;
       if (!S.token) { S.server = srv; save('jf', S); }
@@ -514,11 +517,11 @@
   function quickConnect() {
     checkServer(function (srv, info) {
       api('POST', '/QuickConnect/Initiate', null, function (err, d) {
-        if (err) return smsg(err === 'HTTP 401' ? 'Quick Connect està desactivat al servidor: entra amb usuari i contrasenya' : 'Error: ' + err);
+        if (err) return smsg(err === 'HTTP 401' ? T('Quick Connect està desactivat al servidor: entra amb usuari i contrasenya') : T('Error: {0}', err));
         $('sPw').className = 'hidden';
         $('sCode').className = 'scode';
-        $('sCode').innerHTML = 'Al mòbil o l\'ordinador, obre Jellyfin (' + esc(info.ServerName) + ') → el teu usuari → <b>Quick Connect</b> i escriu:' +
-          '<div class="code">' + esc(d.Code) + '</div>Aquesta pantalla entrarà sola quan l\'autoritzis.';
+        $('sCode').innerHTML = T("Al mòbil o l'ordinador, obre Jellyfin ({0}) → el teu usuari → <b>Quick Connect</b> i escriu:", esc(info.ServerName)) +
+          '<div class="code">' + esc(d.Code) + '</div>' + T("Aquesta pantalla entrarà sola quan l'autoritzis.");
         setupFocus();
         stopQc();
         qcTimer = setInterval(function () {
@@ -526,7 +529,7 @@
             if (e2 || !r || !r.Authenticated || !qcTimer) return;
             stopQc();
             api('POST', '/Users/AuthenticateWithQuickConnect', { Secret: d.Secret }, function (e3, a) {
-              if (e3) return smsg('Error en entrar: ' + e3);
+              if (e3) return smsg(T('Error en entrar: {0}', e3));
               loggedIn(srv, a);
             }, srv);
           }, srv);
@@ -537,10 +540,10 @@
   function passwordLogin() {
     checkServer(function (srv) {
       var u = $('sUser').value.trim();
-      if (!u) { setupIdx = 3; setupFocus(); return smsg('Escriu l\'usuari'); }
-      smsg('Entrant…');
+      if (!u) { setupIdx = 3; setupFocus(); return smsg(T("Escriu l'usuari")); }
+      smsg(T('Entrant…'));
       api('POST', '/Users/AuthenticateByName', { Username: u, Pw: $('sPass').value }, function (err, a) {
-        if (err) return smsg(err === 'HTTP 401' ? 'Usuari o contrasenya incorrectes' : 'Error: ' + err);
+        if (err) return smsg(err === 'HTTP 401' ? T('Usuari o contrasenya incorrectes') : T('Error: {0}', err));
         $('sPass').value = '';
         loggedIn(srv, a);
       }, srv);
@@ -591,7 +594,7 @@
     $('browse').className = '';
     stopQc();
     get('/UserViews?' + qs({ userId: S.userId }), function (err, d) {
-      if (err) return showSetup('No es pot connectar amb ' + S.server + ' (' + err + '). Torna-ho a provar quan el servidor estigui engegat.');
+      if (err) return showSetup(T('No es pot connectar amb {0} ({1}). Torna-ho a provar quan el servidor estigui engegat.', S.server, err));
       libs = (d.Items || []).filter(function (l) { return !SKIP_LIBS[l.CollectionType]; });
       buildTabs();
       area = 'tabs';
@@ -645,11 +648,11 @@
     $('osdFill').style.width = (d ? Math.min(100, video.currentTime / d * 100) : 0) + '%';
     $('osdTime').textContent = fmtT(video.currentTime);
     $('osdDur').textContent = d ? fmtT(d) : '';
-    $('osdState').textContent = video.paused ? '❚❚ En pausa' : '';
+    $('osdState').textContent = video.paused ? T('❚❚ En pausa') : '';
   }
   setInterval(function () { if (playing) { updOsd(); if (video.ended) onEnded(); } }, 1000);
 
-  function label(s) { return s.DisplayTitle || s.Language || ('Pista ' + s.Index); }
+  function label(s) { return s.DisplayTitle || s.Language || T('Pista {0}', s.Index); }
 
   // opts: { audio: index, sub: index|-1, noDirect: bool }
   function play(it, startSec, opts) {
@@ -658,7 +661,7 @@
     $('player').className = 'player';
     $('osdTitle').textContent = it.Type === 'Episode' ? it.SeriesName + ' · ' + epCode(it) : it.Name;
     $('osdSub').textContent = it.Type === 'Episode' ? it.Name : [it.ProductionYear, runtime(it.RunTimeTicks)].filter(Boolean).join(' · ');
-    $('spinner').textContent = 'Carregant…'; $('spinner').className = 'spinner';
+    $('spinner').textContent = T('Carregant…'); $('spinner').className = 'spinner';
     showSub(''); subs = [];
     var body = { UserId: S.userId, StartTimeTicks: Math.floor(startSec * 1e7), MaxStreamingBitrate: br,
       DeviceProfile: deviceProfile(br), EnableDirectPlay: !opts.noDirect, EnableDirectStream: true, EnableTranscoding: true,
@@ -669,7 +672,7 @@
     api('POST', '/Items/' + it.Id + '/PlaybackInfo?' + qs({ userId: S.userId }), body, function (err, d) {
       if (!playing || playing.token !== token) return;
       var ms = d && d.MediaSources && d.MediaSources[0];
-      if (err || !ms) return playError(err ? 'Error: ' + err : (d && d.ErrorCode ? 'El servidor no ho permet (' + d.ErrorCode + ')' : 'No s\'ha trobat el vídeo'));
+      if (err || !ms) return playError(err ? T('Error: {0}', err) : (d && d.ErrorCode ? T('El servidor no ho permet ({0})', d.ErrorCode) : T("No s'ha trobat el vídeo")));
       var url, method, container = String(ms.Container || '').split(',')[0];
       if (ms.SupportsDirectPlay && !opts.noDirect && /^(mp4|m4v|mov|webm)$/.test(container)) {
         url = S.server + '/Videos/' + it.Id + '/stream.' + container + '?' +
@@ -680,7 +683,7 @@
         url = S.server + ms.TranscodingUrl.replace(/([?&])StartTimeTicks=\d+&?/i, '$1');
         if (!/(api_key|ApiKey)=/.test(url)) url += '&api_key=' + S.token;
         method = /VideoCodec=copy|videoStreamCopy|\bcopy\b/i.test(ms.TranscodingUrl) ? 'DirectStream' : 'Transcode';
-      } else return playError('Aquest vídeo no es pot reproduir en aquesta TV');
+      } else return playError(T('Aquest vídeo no es pot reproduir en aquesta TV'));
       var p = playing;
       p.ms = ms; p.sid = d.PlaySessionId; p.method = method;
       p.audio = opts.audio != null ? opts.audio : ms.DefaultAudioStreamIndex;
@@ -695,7 +698,7 @@
       reportTimer = setInterval(function () { report('/Sessions/Playing/Progress'); }, 10000);
       loadExtras(p);
       if (p.subTracks.length && opts.sub === undefined) {
-        toast(p.sub >= 0 ? 'Subtítols: ' + label(subTrack(p.sub)) + ' (▲ per canviar)' : 'Té subtítols: prem ▲ per activar-los');
+        toast(p.sub >= 0 ? T('Subtítols: {0} (▲ per canviar)', label(subTrack(p.sub))) : T('Té subtítols: prem ▲ per activar-los'));
       }
     });
     showOsd();
@@ -745,7 +748,7 @@
   function showSkip(sg) {
     if (playing) playing.skipSeg = sg;
     if (!sg || upnext) { $('skip').className = 'skip hidden'; return; }
-    $('skip').innerHTML = '⏭ ' + SKIP_TEXT[sg.type] + ' <span>OK</span>';
+    $('skip').innerHTML = '⏭ ' + T(SKIP_TEXT[sg.type]) + ' <span>OK</span>';
     $('skip').className = 'skip';
   }
   video.addEventListener('timeupdate', function () {
@@ -769,7 +772,7 @@
     $('upTitle').textContent = epCode(p.next) + ' · ' + p.next.Name;
     var tick = function () {
       if (upnext.left <= 0) return playNext();
-      $('upCount').textContent = 'Comença en ' + upnext.left-- + ' s';
+      $('upCount').textContent = T('Comença en {0} s', upnext.left--);
     };
     upnext.timer = setInterval(tick, 1000); tick();
     $('upnext').className = 'upnext';
@@ -826,7 +829,7 @@
     }
     showOsd();
   });
-  video.addEventListener('waiting', function () { $('spinner').textContent = 'Carregant…'; $('spinner').className = 'spinner'; });
+  video.addEventListener('waiting', function () { $('spinner').textContent = T('Carregant…'); $('spinner').className = 'spinner'; });
   video.addEventListener('pause', function () { if (playing) { report('/Sessions/Playing/Progress'); showOsd(); } });
   video.addEventListener('error', function () {
     var p = playing;
@@ -836,7 +839,7 @@
       stopSession(p, at);
       return play(p.it, at, { audio: p.audio, sub: p.sub, noDirect: true });
     }
-    playError('No s\'ha pogut reproduir aquest vídeo');
+    playError(T("No s'ha pogut reproduir aquest vídeo"));
   });
   // 'ended' sometimes comes late (or not at all) after seeking to the end of an HLS stream: the OSD
   // timer checks video.ended too
@@ -863,11 +866,11 @@
   function cycleAudio() {
     var p = playing;
     if (!p || !p.audios) return;
-    if (p.audios.length < 2) return toast('Només hi ha una pista d\'àudio');
+    if (p.audios.length < 2) return toast(T("Només hi ha una pista d'àudio"));
     var i = 0;
     p.audios.forEach(function (s, k) { if (s.Index === p.audio) i = k; });
     var next = p.audios[(i + 1) % p.audios.length];
-    toast('Àudio: ' + label(next));
+    toast(T('Àudio: {0}', label(next)));
     var at = video.currentTime || p.start;
     stopSession(p, at);
     // the browser can only play the file's default track, so another one needs the server to remux it
@@ -912,13 +915,13 @@
     var p = playing;
     p.sub = i; subs = []; showSub('');
     var tr = i >= 0 ? subTrack(i) : null;
-    if (announce) toast(tr ? 'Subtítols: ' + label(tr) : (p.subTracks.length ? 'Subtítols desactivats' : 'Aquest vídeo no té subtítols de text'));
+    if (announce) toast(tr ? T('Subtítols: {0}', label(tr)) : T(p.subTracks.length ? 'Subtítols desactivats' : 'Aquest vídeo no té subtítols de text'));
     if (!tr) return;
     var x = new XMLHttpRequest();
     x.open('GET', S.server + '/Videos/' + p.it.Id + '/' + p.ms.Id + '/Subtitles/' + i + '/0/Stream.vtt?api_key=' + S.token, true);
     x.onload = function () {
       if (playing !== p || p.sub !== i) return;
-      if (x.status !== 200) return toast('No s\'han pogut carregar els subtítols');
+      if (x.status !== 200) return toast(T("No s'han pogut carregar els subtítols"));
       subs = parseVtt(x.responseText);
     };
     x.send();
@@ -926,7 +929,7 @@
   function cycleSub() {
     var p = playing;
     if (!p || !p.subTracks) return;
-    if (!p.subTracks.length) return toast('Aquest vídeo no té subtítols de text');
+    if (!p.subTracks.length) return toast(T('Aquest vídeo no té subtítols de text'));
     var k = -1;
     p.subTracks.forEach(function (s, j) { if (s.Index === p.sub) k = j; });
     selectSub(k + 1 < p.subTracks.length ? p.subTracks[k + 1].Index : -1, true);
@@ -975,8 +978,12 @@
     if (c.act === 'play') return play(c.it, c.pos);
     if (c.act === 'played') return setPlayed(c.it, !c.played);
     if (c.act === 'series') return openSeries({ Id: c.it.SeriesId, Name: c.it.SeriesName });
-    if (c.act === 'bitrate') { save('jfbr', c.v); toast('Qualitat màxima: ' + c.title); var f = v.focus; showSettings(); view().focus = f; return updateFocus(); }
-    if (c.act === 'logout') return logout('Sessió tancada');
+    if (c.act === 'bitrate') { save('jfbr', c.v); toast(T('Qualitat màxima: {0}', c.title)); var f = v.focus; showSettings(); view().focus = f; return updateFocus(); }
+    if (c.act === 'lang') {
+      setLang(c.v); translatePage();
+      var lf = v.focus; buildTabs(); showSettings(); view().focus = lf; return updateFocus();
+    }
+    if (c.act === 'logout') return logout(T('Sessió tancada'));
   }
 
   function gridKey(k) {

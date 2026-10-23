@@ -24,6 +24,8 @@ var EXT_BY_MIME = {
   'video/mp4': '.mp4', 'video/quicktime': '.mov', 'video/webm': '.webm', 'video/x-matroska': '.mkv'
 };
 
+var msgs = require('./msgs.js'), T = msgs.T;
+
 module.exports = function (luna, send) {
   try { fs.mkdirSync(DIR); } catch (e) { /* exists */ }
 
@@ -58,7 +60,7 @@ module.exports = function (luna, send) {
     var items = names.map(function (f) {
       return { url: BASE + encodeURIComponent(f), type: kind(f), name: f.replace(/^\d+-/, '') };
     });
-    luna('luna://com.webos.applicationManager/launch', { id: VIEWER, params: { items: items, start: start || 0 } },
+    luna('luna://com.webos.applicationManager/launch', { id: VIEWER, params: { items: items, start: start || 0, lang: msgs.lang() } },
       function (r) { send(res, 200, r); });
   }
 
@@ -72,18 +74,18 @@ module.exports = function (luna, send) {
   }
 
   function upload(req, res, q) {
-    if (req.method !== 'POST') return send(res, 405, { error: 'cal POST' });
+    if (req.method !== 'POST') return send(res, 405, { error: T('cal POST') });
     var mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
     var base = path.basename(String(q.name || 'fitxer')).replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80);
     var ext = path.extname(base).toLowerCase();
     if (!TYPES[ext]) { ext = EXT_BY_MIME[mime]; base = base.replace(/\.[^.]*$/, '') + (ext || ''); }
     if (!ext && /hei[cf]/.test(mime + base.toLowerCase())) {
-      return send(res, 415, { error: "la TV no obre fotos HEIC: a l'iPhone, Configuració > Càmera > Formats > Més compatible" });
+      return send(res, 415, { error: T("la TV no obre fotos HEIC: a l'iPhone, Configuració > Càmera > Formats > Més compatible") });
     }
-    if (!ext) return send(res, 415, { error: 'format no compatible (' + (mime || 'desconegut') + ')' });
+    if (!ext) return send(res, 415, { error: T('format no compatible ({0})', mime || T('desconegut')) });
     var size = +req.headers['content-length'] || 0;
     cleanup(size, function (ok) {
-      if (!ok) return send(res, 507, { error: 'no hi ha prou espai a la TV' });
+      if (!ok) return send(res, 507, { error: T('no hi ha prou espai a la TV') });
       var file = Date.now() + '-' + base, tmp = path.join(DIR, '.' + file);
       var out = fs.createWriteStream(tmp);
       req.pipe(out);
@@ -100,7 +102,7 @@ module.exports = function (luna, send) {
 
   function openUrl(q, res) {
     var u = String(q.u || '').trim(), m;
-    if (!/^https?:\/\//i.test(u)) return send(res, 400, { error: 'enllaç no vàlid' });
+    if (!/^https?:\/\//i.test(u)) return send(res, 400, { error: T('enllaç no vàlid') });
     if ((m = /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/))([A-Za-z0-9_-]{11})/.exec(u))) {
       // the app's own deeplinkingParams format ("v=$CONTENTID"); a full URL just opens the home screen.
       // A running YouTube ignores it (and so does DIAL), so it is closed first; relaunched sooner than
@@ -137,7 +139,7 @@ module.exports = function (luna, send) {
     // POST /api/compartir[?name=…] from the iPhone shortcut (or anything else): the body is either a
     // photo/video, or something with a link in it (plain text, JSON, a .webloc/.url, a Safari page)
     compartir: function (req, res, q) {
-      if (req.method !== 'POST') return send(res, 405, { error: 'cal POST' });
+      if (req.method !== 'POST') return send(res, 405, { error: T('cal POST') });
       var mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
       var ext = path.extname(String(q.name || '')).toLowerCase();
       if (/^(image|video)\//.test(mime) || TYPES[ext]) return upload(req, res, { name: q.name, batch: '1' });
@@ -146,7 +148,7 @@ module.exports = function (luna, send) {
       req.on('data', function (c) { if (body.length < 262144) body += c; else big = true; });
       req.on('end', function () {
         var m = /https?:\/\/[^\s"'<>\\\x00-\x1f]+/.exec(body.replace(/\\\//g, '/'));
-        if (!m) return send(res, 415, { error: big ? 'fitxer no compatible' : "no hi ha cap foto, vídeo ni enllaç" });
+        if (!m) return send(res, 415, { error: T(big ? 'fitxer no compatible' : 'no hi ha cap foto, vídeo ni enllaç') });
         openUrl({ u: m[0] }, res);
       });
     },
@@ -176,7 +178,7 @@ module.exports = function (luna, send) {
     show: function (q, res) {
       var have = files().map(function (f) { return f.file; });
       var names = String(q.f || '').split('|').filter(function (f) { return have.indexOf(f) >= 0; });
-      if (!names.length) return send(res, 404, { error: 'fitxer no trobat' });
+      if (!names.length) return send(res, 404, { error: T('fitxer no trobat') });
       showItems(names, res);
     },
 
@@ -194,7 +196,7 @@ module.exports = function (luna, send) {
     // POST /api/share/delete?f=name
     remove: function (q, res) {
       var name = path.basename(String(q.f || ''));
-      if (!TYPES[path.extname(name).toLowerCase()]) return send(res, 400, { error: 'nom invàlid' });
+      if (!TYPES[path.extname(name).toLowerCase()]) return send(res, 400, { error: T('nom invàlid') });
       fs.unlink(path.join(DIR, name), function (err) { send(res, 200, { returnValue: !err }); });
     },
 
@@ -204,7 +206,7 @@ module.exports = function (luna, send) {
 
   function show(url, type, name, res) {
     luna('luna://com.webos.applicationManager/launch',
-      { id: VIEWER, params: { items: [{ url: url, type: type, name: name }] } },
+      { id: VIEWER, params: { items: [{ url: url, type: type, name: name }], lang: msgs.lang() } },
       function (r) { send(res, 200, r); });
   }
 
@@ -212,20 +214,20 @@ module.exports = function (luna, send) {
     var done = false, base;
     function fail(msg) { if (!done) { done = true; send(res, 200, { returnValue: false, error: msg }); } }
     try { base = JSON.parse(fs.readFileSync(CONFIG, 'utf8')).tvlinks; } catch (e) { /* no config */ }
-    if (!base) return fail('Només enllaços de YouTube, 3Cat o de fotos i vídeos directes (el servei tvlinks no està configurat)');
+    if (!base) return fail(T('Només enllaços de YouTube, 3Cat o de fotos i vídeos directes (el servei tvlinks no està configurat)'));
     var req = http.get(base.replace(/\/+$/, '') + '/resolve?u=' + encodeURIComponent(u), function (r) {
       var body = '';
       r.setEncoding('utf8');
       r.on('data', function (c) { body += c; });
       r.on('end', function () {
         var j;
-        try { j = JSON.parse(body); } catch (e) { return fail('resposta estranya del servei tvlinks'); }
-        if (!j.url) return fail(j.error || "no s'ha trobat el vídeo");
+        try { j = JSON.parse(body); } catch (e) { return fail(T('resposta estranya del servei tvlinks')); }
+        if (!j.url) return fail(j.error ? T(j.error) : T("no s'ha trobat el vídeo"));   // tvlinks answers in Catalan
         done = true;
         show(j.url, 'video', j.title || u, res);
       });
     });
-    req.setTimeout(100000, function () { req.abort(); fail('el servei tvlinks ha trigat massa'); });
-    req.on('error', function () { fail("el servei tvlinks no respon (l'ordinador és encès?)"); });
+    req.setTimeout(100000, function () { req.abort(); fail(T('el servei tvlinks ha trigat massa')); });
+    req.on('error', function () { fail(T("el servei tvlinks no respon (l'ordinador és encès?)")); });
   }
 };

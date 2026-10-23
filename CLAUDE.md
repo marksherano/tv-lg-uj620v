@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Home-made apps and tools for one specific TV: an LG 49UJ620V (2017, webOS 3.9.3, firmware 06.10.75), rooted with Homebrew Channel. There is no test suite or linter; "testing" means installing on the real TV and driving it (see below). User-facing text (UI, READMEs, commit messages) is in Catalan; `README.es.md` is the Spanish mirror of `README.md` and must be kept in sync.
+Home-made apps and tools for one specific TV: an LG 49UJ620V (2017, webOS 3.9.3, firmware 06.10.75), rooted with Homebrew Channel. There is no test suite or linter; "testing" means installing on the real TV and driving it (see below). The repo's official language is English (`README.md`, commit messages); `README.ca.md` (Catalan) and `README.es.md` (Spanish) are mirrors and must be kept in sync with it.
+
+UI text is in Catalan, Spanish and English. Each deliverable has an `i18n.js`: the same core in all of them (`T(s, args…)` with `{0}` placeholders, `LANG`, `setLang`, `translatePage()` for `data-t` / `data-th` (inner HTML) / `data-tp` (placeholder) elements; language from `localStorage.lang`, else `navigator.language`, else English) plus that app's `T_ES` / `T_EN` tables. Code keeps writing its strings in Catalan, wrapped in `T()`; the Catalan string is the key, so a new or changed string needs an entry in both tables (a missing one silently shows Catalan). If you change the core, copy it to every `i18n.js`. The web remote's `i18n.js` (served as `/i18n.js`) also sets a `lang` cookie and fills the `<select id="lang">` at the bottom of each page; `remote/msgs.js` is the server side (JSON errors, toasts, alerts, the manifest name), set per request from that cookie or `Accept-Language`, and the remote passes `lang` in Pantalla's launch params. Where each app's language switch lives is in the README ("Languages").
 
 ## Commands
 

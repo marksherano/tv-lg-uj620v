@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="ca">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#111318">
-<title>Comandament TV</title>
+<title data-t>Comandament TV</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="manifest" href="/manifest.json">
@@ -47,22 +47,25 @@
   #kbSt.on { color: #6bdc8c; }
   a.lnk { display: flex; align-items: center; justify-content: center; height: 50px; border-radius: 14px;
     background: #1d2a44; color: #cfe0ff; text-decoration: none; font-size: 15px; }
+  .langsel { margin: 26px 0 0; text-align: center; }
+  .langsel select { font: inherit; font-size: 14px; color: #c8ccd4; background: #1f232b; border: 0; border-radius: 10px; padding: 8px 12px; }
 </style>
+<script src="/i18n.js"></script>
 </head>
 <body>
-<div id="kbBar" class="kbbar hidden">⌨ La TV demana text · toca per escriure</div>
+<div id="kbBar" class="kbbar hidden" data-t>⌨ La TV demana text · toca per escriure</div>
 <main>
-  <header><h1>📺 Comandament</h1><div id="st">connectant…</div></header>
+  <header><h1 data-t>📺 Comandament</h1><div id="st" data-t>connectant…</div></header>
 
   <div class="row r2">
-    <a class="lnk" href="/envia">📤 Envia a la TV</a>
-    <a class="lnk" href="/estadistiques">📊 Estadístiques</a>
+    <a class="lnk" href="/envia" data-t>📤 Envia a la TV</a>
+    <a class="lnk" href="/estadistiques" data-t>📊 Estadístiques</a>
   </div>
-  <div class="row"><a class="lnk" href="/estat">🩺 Estat de la TV</a></div>
+  <div class="row"><a class="lnk" href="/estat" data-t>🩺 Estat de la TV</a></div>
 
   <div class="row r3">
-    <button data-k="BACK">↩ Enrere</button>
-    <button data-k="HOME">⌂ Inici</button>
+    <button data-k="BACK" data-t>↩ Enrere</button>
+    <button data-k="HOME" data-t>⌂ Inici</button>
     <button data-k="INFO" class="small">ⓘ Info</button>
   </div>
 
@@ -82,27 +85,27 @@
     <button data-k="REWIND">⏪</button><button data-k="PLAY">▶</button><button data-k="PAUSE">⏸</button><button data-k="FASTFORWARD">⏩</button>
   </div>
   <div class="row r2">
-    <button data-k="CHANNELDOWN" class="small">Canal −</button><button data-k="CHANNELUP" class="small">Canal +</button>
+    <button data-k="CHANNELDOWN" class="small" data-t>Canal −</button><button data-k="CHANNELUP" class="small" data-t>Canal +</button>
   </div>
 
-  <h2 id="kbH">Teclat</h2>
+  <h2 id="kbH" data-t>Teclat</h2>
   <div class="txt">
     <input id="t" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-      placeholder="El que escriguis surt a la TV" enterkeyhint="go">
-    <button id="tClr" class="small" style="width:56px">⌫</button><button id="send" class="small">Intro</button>
+      placeholder="El que escriguis surt a la TV" data-tp enterkeyhint="go">
+    <button id="tClr" class="small" style="width:56px">⌫</button><button id="send" class="small" data-t>Intro</button>
   </div>
-  <div class="sub" id="kbSt">Obre un camp de text a la TV (navegador, Wi-Fi, Jellyfin Lite…) i escriu aquí. YouTube i Netflix fan servir un teclat propi i no ho reben.</div>
+  <div class="sub" id="kbSt" data-t>Obre un camp de text a la TV (navegador, Wi-Fi, Jellyfin Lite…) i escriu aquí. YouTube i Netflix fan servir un teclat propi i no ho reben.</div>
 
-  <h2>Missatge a la pantalla</h2>
-  <div class="txt"><input id="m" type="text" maxlength="300" placeholder="Ex.: El sopar és a taula!" enterkeyhint="send"></div>
+  <h2 data-t>Missatge a la pantalla</h2>
+  <div class="txt"><input id="m" type="text" maxlength="300" placeholder="Ex.: El sopar és a taula!" data-tp enterkeyhint="send"></div>
   <div class="row r2" style="margin-top:10px">
-    <button id="mToast" class="small">💬 Avís breu</button>
-    <button id="mAlert" class="small warn">🔔 Alerta (cal OK)</button>
+    <button id="mToast" class="small" data-t>💬 Avís breu</button>
+    <button id="mAlert" class="small warn" data-t>🔔 Alerta (cal OK)</button>
   </div>
   <div class="row r3">
-    <button data-msg="EL SOPAR ÉS A TAULA! 🍽" class="small">🍽 Sopar</button>
-    <button data-msg="HORA D'ANAR A DORMIR 🌙" class="small">🌙 A dormir</button>
-    <button data-msg="MIRA EL MÒBIL, SI US PLAU 📱" class="small">📱 Mòbil</button>
+    <button data-msg="EL SOPAR ÉS A TAULA! 🍽" class="small" data-t>🍽 Sopar</button>
+    <button data-msg="HORA D'ANAR A DORMIR 🌙" class="small" data-t>🌙 A dormir</button>
+    <button data-msg="MIRA EL MÒBIL, SI US PLAU 📱" class="small" data-t>📱 Mòbil</button>
   </div>
 
   <h2>Apps</h2>
@@ -115,37 +118,37 @@
     <button data-app="org.jellyfin.webos" class="small">Jellyfin</button>
     <button data-app="spotify-beehive" class="small">Spotify</button>
     <button data-app="cat.ccma.super3.webos" class="small">SX3</button>
-    <button data-app="com.webos.app.browser" class="small">🌐 Navegador</button>
+    <button data-app="com.webos.app.browser" class="small" data-t>🌐 Navegador</button>
     <button data-app="cat.pantalla" class="small">🖼 Pantalla</button>
     <button data-app="cat.brillo.plus" class="small">☀ Brillo+</button>
     <button data-app="org.webosbrew.hbchannel" class="small">Homebrew</button>
   </div>
 
-  <h2>Entrades</h2>
+  <h2 data-t>Entrades</h2>
   <div class="row r3">
     <button data-app="com.webos.app.hdmi1" class="small">HDMI 1</button>
     <button data-app="com.webos.app.hdmi2" class="small">HDMI 2</button>
     <button data-app="com.webos.app.hdmi3" class="small">HDMI 3</button>
   </div>
 
-  <h2>Energia</h2>
+  <h2 data-t>Energia</h2>
   <div class="row r3">
-    <button id="scrOff" class="small warn">Pantalla off</button>
-    <button id="scrOn" class="small">Pantalla on</button>
-    <button id="power" class="small red">⏻ Apagar</button>
+    <button id="scrOff" class="small warn" data-t>Pantalla off</button>
+    <button id="scrOn" class="small" data-t>Pantalla on</button>
+    <button id="power" class="small red" data-t>⏻ Apagar</button>
   </div>
-  <div class="sub hidden" id="wakeSt">Per encendre-la quan estigui apagada: <a id="wakeA" href="#">pàgina «Encén la TV»</a>
+  <div class="sub hidden" id="wakeSt" data-th>Per encendre-la quan estigui apagada: <a id="wakeA" href="#">pàgina «Encén la TV»</a>
     (afegeix-la a la pantalla d'inici)</div>
 
-  <div class="sub">Estalvi d'energia (baixa la llum de fons)</div>
+  <div class="sub" data-t>Estalvi d'energia (baixa la llum de fons)</div>
   <div class="row r4">
-    <button data-energy="off" class="small">No</button>
-    <button data-energy="min" class="small">Mínim</button>
-    <button data-energy="med" class="small">Mitjà</button>
-    <button data-energy="max" class="small">Màxim</button>
+    <button data-energy="off" class="small" data-t>No</button>
+    <button data-energy="min" class="small" data-t>Mínim</button>
+    <button data-energy="med" class="small" data-t>Mitjà</button>
+    <button data-energy="max" class="small" data-t>Màxim</button>
   </div>
 
-  <div class="sub">Temporitzador d'apagada: <span id="sleepSt">—</span></div>
+  <div class="sub" data-th>Temporitzador d'apagada: <span id="sleepSt">—</span></div>
   <div class="row r4">
     <button data-sleep="10" class="small">10 min</button>
     <button data-sleep="20" class="small">20 min</button>
@@ -157,33 +160,36 @@
     <button data-sleep="240" class="small">4 h</button>
   </div>
   <div class="txt" style="margin-bottom:10px">
-    <input id="sl" type="text" inputmode="decimal" placeholder="Minuts (45) o hora (23:15)" enterkeyhint="done">
-    <button id="slGo" class="small">Programa</button>
+    <input id="sl" type="text" inputmode="decimal" placeholder="Minuts (45) o hora (23:15)" data-tp enterkeyhint="done">
+    <button id="slGo" class="small" data-t>Programa</button>
   </div>
-  <div class="row"><button data-sleep="off" class="small warn">Cancel·la el temporitzador</button></div>
+  <div class="row"><button data-sleep="off" class="small warn" data-t>Cancel·la el temporitzador</button></div>
+
+  <div class="langsel"><select id="lang" aria-label="Idioma / Language"></select></div>
 </main>
 <script>
+  translatePage(); langPicker();
   var st = document.getElementById('st');
   function api(path) {
     if (navigator.vibrate) navigator.vibrate(15);
     return fetch('/api/' + path, { method: 'POST' }).then(function (r) { return r.json(); }).then(function (j) {
-      if (j.returnValue === false || j.error) { status('Error: ' + (j.errorText || j.error), true); }
+      if (j.returnValue === false || j.error) { status(T('Error: {0}', j.errorText || j.error), true); }
       return j;
-    }).catch(function () { status('Sense connexió amb la TV', true); });
+    }).catch(function () { status(T('Sense connexió amb la TV'), true); });
   }
   function status(t, err) { st.textContent = t; st.className = err ? 'err' : ''; }
 
   function refresh() {
     fetch('/api/state').then(function (r) { return r.json(); }).then(function (s) {
-      status(s.app ? s.app.replace(/^com\.webos\.app\./, '') : 'connectat');
-      document.getElementById('vol').textContent = s.muted ? '🔇 silenci' : '🔈 ' + s.volume;
+      status(s.app ? s.app.replace(/^com\.webos\.app\./, '') : T('connectat'));
+      document.getElementById('vol').textContent = s.muted ? T('🔇 silenci') : '🔈 ' + s.volume;
       mark('data-energy', s.energy);
       mark('data-sleep', s.sleep);
       var on = s.sleep && s.sleep !== 'off';
-      document.getElementById('sleepSt').textContent = !on ? 'desactivat'
-        : s.sleepLeft != null ? 'a les ' + s.sleepAt + " (d'aquí a " + fmtMin(s.sleepLeft) + ')'
-        : 'actiu (' + fmtMin(+s.sleep) + ')';
-    }).catch(function () { status('Sense connexió amb la TV', true); });
+      document.getElementById('sleepSt').textContent = !on ? T('desactivat')
+        : s.sleepLeft != null ? T("a les {0} (d'aquí a {1})", s.sleepAt, fmtMin(s.sleepLeft))
+        : T('actiu ({0})', fmtMin(+s.sleep));
+    }).catch(function () { status(T('Sense connexió amb la TV'), true); });
   }
 
   function mark(attr, v) {
@@ -239,8 +245,8 @@
     t.type = k.password ? 'password' : 'text';
     t.classList.toggle('tvfocus', k.focus);
     kbSt.classList.toggle('on', k.focus);
-    kbSt.textContent = k.focus ? (k.password ? '🔒 La TV demana una contrasenya: escriu-la aquí.' : '⌨ La TV té un camp de text obert: escriu aquí.')
-      : 'Obre un camp de text a la TV (navegador, Wi-Fi, Jellyfin Lite…) i escriu aquí. YouTube i Netflix fan servir un teclat propi i no ho reben.';
+    kbSt.textContent = T(k.focus ? (k.password ? '🔒 La TV demana una contrasenya: escriu-la aquí.' : '⌨ La TV té un camp de text obert: escriu aquí.')
+      : 'Obre un camp de text a la TV (navegador, Wi-Fi, Jellyfin Lite…) i escriu aquí. YouTube i Netflix fan servir un teclat propi i no ho reben.');
     if (fresh) t.value = '';
     kbBar.classList.toggle('hidden', !k.focus || document.activeElement === t);
   }
@@ -259,14 +265,14 @@
   function sendMsg(text, mode) {
     if (!text) { m.focus(); return; }
     api('msg?mode=' + mode + '&t=' + encodeURIComponent(text)).then(function (j) {
-      if (j && j.returnValue) { status(mode === 'alert' ? 'Alerta enviada' : 'Avís enviat'); m.value = ''; m.blur(); }
+      if (j && j.returnValue) { status(T(mode === 'alert' ? 'Alerta enviada' : 'Avís enviat')); m.value = ''; m.blur(); }
     });
   }
   document.getElementById('mToast').addEventListener('click', function () { sendMsg(m.value.trim(), 'toast'); });
   document.getElementById('mAlert').addEventListener('click', function () { sendMsg(m.value.trim(), 'alert'); });
   m.addEventListener('keydown', function (e) { if (e.key === 'Enter') sendMsg(m.value.trim(), 'toast'); });
   document.querySelectorAll('[data-msg]').forEach(function (b) {
-    b.addEventListener('click', function () { sendMsg(b.getAttribute('data-msg'), 'alert'); });
+    b.addEventListener('click', function () { sendMsg(T(b.getAttribute('data-msg')), 'alert'); });
   });
 
   document.getElementById('scrOff').addEventListener('click', function () { api('screen?on=0'); });
@@ -284,14 +290,14 @@
     var v = sl.value.trim(), hm = /^(\d{1,2})[:.h](\d{2})$/.exec(v), q;
     if (hm) q = 'at=' + hm[1] + ':' + hm[2];
     else if (/^\d{1,3}$/.test(v) && +v >= 1 && +v <= 720) q = 'm=' + +v;
-    else { status('Posa minuts (1–720) o una hora com 23:15', true); sl.focus(); return; }
+    else { status(T('Posa minuts (1–720) o una hora com 23:15'), true); sl.focus(); return; }
     api('sleep?' + q).then(function (j) { if (j && j.returnValue) { sl.value = ''; sl.blur(); } refresh(); });
   }
   document.getElementById('slGo').addEventListener('click', sleepCustom);
   sl.addEventListener('keydown', function (e) { if (e.key === 'Enter') sleepCustom(); });
 
   document.getElementById('power').addEventListener('click', function () {
-    if (confirm(wakeUrl ? 'Apagar la TV?' : 'Apagar la TV? Des d\'aquí no la podràs tornar a encendre.')) api('key?k=POWER');
+    if (confirm(T(wakeUrl ? 'Apagar la TV?' : "Apagar la TV? Des d'aquí no la podràs tornar a encendre."))) api('key?k=POWER');
   });
 
   // turning on is done by tvlinks (Wake-on-LAN), since this page is down while the TV is off;

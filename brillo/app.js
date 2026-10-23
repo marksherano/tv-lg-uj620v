@@ -106,12 +106,12 @@
   function readSettings(cb) {
     var keys = CONTROLS.map(function (c) { return c.key; });
     settingsCall('getSystemSettings', { category: 'picture', keys: keys }, function (r) {
-      if (!r.returnValue || !r.settings) { status('No puc llegir els ajustos: ' + (r.errorText || '?'), 'err'); return; }
+      if (!r.returnValue || !r.settings) { status(T('No puc llegir els ajustos: {0}', r.errorText || '?'), 'err'); return; }
       keys.forEach(function (k) {
         if (k in r.settings) { types[k] = typeof r.settings[k]; values[k] = r.settings[k]; }
       });
       var d = r.dimension || {};
-      el('dim').textContent = (d.input ? 'Entrada: ' + d.input : '') + (d.pictureMode ? '  ·  Mode: ' + d.pictureMode : '');
+      el('dim').textContent = (d.input ? T('Entrada: {0}', d.input) : '') + (d.pictureMode ? '  ·  ' + T('Mode: {0}', d.pictureMode) : '');
       if (cb) cb();
     });
   }
@@ -126,7 +126,7 @@
     pendingTimer = null;
     var s = pending; pending = {};
     settingsCall('setSystemSettings', { category: 'picture', settings: s }, function (r) {
-      if (!r.returnValue) status('Error en aplicar: ' + (r.errorText || '?'), 'err');
+      if (!r.returnValue) status(T('Error en aplicar: {0}', r.errorText || '?'), 'err');
     });
   }
 
@@ -143,7 +143,7 @@
   function presetByIndex(i) {
     if (i < BUILTIN.length) return BUILTIN[i];
     var c = cfg.custom[i - BUILTIN.length];
-    return c ? { name: 'Personal ' + (i - BUILTIN.length + 1), s: c } : null;
+    return c ? { name: T('Personal {0}', i - BUILTIN.length + 1), s: c } : null;
   }
 
   function saveConfig() {
@@ -159,7 +159,7 @@
       writeFile(CONF_DIR + '/schedule.conf', lines.join('\n') + '\n', function (ok) {
         // let the daemon re-apply the currently active entry with the new schedule
         sh('rm -f /tmp/brillo.applied');
-        if (!ok) status('No s\'ha pogut desar la configuració', 'err');
+        if (!ok) status(T("No s'ha pogut desar la configuració"), 'err');
       });
     });
   }
@@ -194,6 +194,7 @@
     cfg.custom.forEach(function (p, i) { items.push({ col: 'side', kind: 'custom', i: i }); });
     items.push({ col: 'side', kind: 'schedOn' });
     cfg.sched.forEach(function (e, i) { items.push({ col: 'side', kind: 'sched', i: i }); });
+    items.push({ col: 'side', kind: 'lang' });
   }
 
   function rowHtml(it, idx) {
@@ -201,12 +202,12 @@
     var h = '';
     if (it.kind === 'ctl') {
       var c = it.c, v = values[c.key];
-      h += '<div class="row' + f + '"><div class="label">' + c.label + '</div>';
+      h += '<div class="row' + f + '"><div class="label">' + T(c.label) + '</div>';
       if (v === undefined) {
         h += '<div class="opts"><span class="opt">—</span></div>';
       } else if (c.opts) {
         h += '<div class="opts">';
-        c.opts.forEach(function (o) { h += '<span class="opt' + (o === v ? ' sel' : '') + '">' + c.names[o] + '</span>'; });
+        c.opts.forEach(function (o) { h += '<span class="opt' + (o === v ? ' sel' : '') + '">' + T(c.names[o]) + '</span>'; });
         h += '</div>';
       } else {
         var n = parseInt(v, 10), pct = (n - c.min) / (c.max - c.min) * 100;
@@ -220,37 +221,43 @@
     }
     if (it.kind === 'preset') {
       var p = BUILTIN[it.i];
-      return '<div class="row preset' + f + '"><div class="pname">' + p.name + '</div><div class="pdesc">' + p.desc +
-             '</div><div class="pact">OK aplica</div></div>';
+      return '<div class="row preset' + f + '"><div class="pname">' + T(p.name) + '</div><div class="pdesc">' + T(p.desc) +
+             '</div><div class="pact">' + T('OK aplica') + '</div></div>';
     }
     if (it.kind === 'custom') {
       var cs = cfg.custom[it.i];
-      return '<div class="row preset' + f + '"><div class="pname">Personal ' + (it.i + 1) + '</div><div class="pdesc">' +
-             (cs ? 'Llum ' + cs.backlight + ' · Bri. ' + cs.brightness : 'buit') +
-             '</div><div class="pact">' + (cs ? 'OK aplica · ▶ desa' : 'OK desa') + '</div></div>';
+      return '<div class="row preset' + f + '"><div class="pname">' + T('Personal {0}', it.i + 1) + '</div><div class="pdesc">' +
+             (cs ? T('Llum {0} · Bri. {1}', cs.backlight, cs.brightness) : T('buit')) +
+             '</div><div class="pact">' + T(cs ? 'OK aplica · ▶ desa' : 'OK desa') + '</div></div>';
     }
     if (it.kind === 'schedOn') {
-      return '<div class="row sched' + f + '"><div class="label">Automàtic</div><div class="opts">' +
-             '<span class="opt' + (!cfg.schedOn ? ' sel' : '') + '">No</span>' +
-             '<span class="opt' + (cfg.schedOn ? ' sel' : '') + '">Sí</span></div></div>';
+      return '<div class="row sched' + f + '"><div class="label">' + T('Automàtic') + '</div><div class="opts">' +
+             '<span class="opt' + (!cfg.schedOn ? ' sel' : '') + '">' + T('No') + '</span>' +
+             '<span class="opt' + (cfg.schedOn ? ' sel' : '') + '">' + T('Sí') + '</span></div></div>';
+    }
+    if (it.kind === 'lang') {
+      return '<div class="row sched' + f + '"><div class="label">' + T('Idioma') + '</div><div class="opts">' +
+             LANGS.map(function (l) { return '<span class="opt' + (l === LANG ? ' sel' : '') + '">' + LANG_NAMES[l] + '</span>'; }).join('') +
+             '</div></div>';
     }
     var e = cfg.sched[it.i], pr = presetByIndex(e.p);
-    return '<div class="row sched' + f + '"><div class="label">' + e.label + '</div>' +
-           '<div class="val">' + hhmm(e.t) + '  →  ' + (pr ? pr.name : '—') + '</div></div>';
+    return '<div class="row sched' + f + '"><div class="label">' + T(e.label) + '</div>' +
+           '<div class="val">' + hhmm(e.t) + '  →  ' + (pr ? T(pr.name) : '—') + '</div></div>';
   }
 
   function render() {
-    var main = '', presets = '', sched = '';
+    var main = '', presets = '', sched = '', lang = '';
     items.forEach(function (it, i) {
       var h = rowHtml(it, i);
       if (it.col === 'main') main += h;
       else if (it.kind === 'preset' || it.kind === 'custom') presets += h;
+      else if (it.kind === 'lang') lang = h;
       else sched += h;
     });
     el('controls').innerHTML = main;
     el('presets').innerHTML = presets;
     el('schedule').innerHTML = sched +
-      '<div style="font-size:20px;color:#6c7783;margin-top:4px">◀ ▶ hora (15 min) · OK canvia el perfil</div>';
+      '<div style="font-size:20px;color:#6c7783;margin:4px 0 14px">' + T('◀ ▶ hora (15 min) · OK canvia el perfil') + '</div>' + lang;
   }
 
   function adjust(it, dir, big) {
@@ -268,10 +275,13 @@
       applySettings(o);
     } else if (it.kind === 'schedOn') {
       cfg.schedOn = dir > 0; saveConfig(); render();
-      status(cfg.schedOn ? 'Programació activada' : 'Programació desactivada', 'ok');
+      status(T(cfg.schedOn ? 'Programació activada' : 'Programació desactivada'), 'ok');
     } else if (it.kind === 'sched') {
       var e = cfg.sched[it.i];
       e.t = (e.t + dir * 15 + 1440) % 1440; render(); saveSoon();
+    } else if (it.kind === 'lang') {
+      setLang(LANGS[(LANGS.indexOf(LANG) + dir + LANGS.length) % LANGS.length]);
+      translatePage(); render(); readSettings(render);   // also redraws the input / mode line
     } else if (it.kind === 'custom' && dir > 0) {
       saveCustom(it.i);
     } else if (dir < 0 && it.col === 'side') {
@@ -289,15 +299,16 @@
   }
   function saveCustom(i) {
     cfg.custom[i] = snapshot(); saveConfig(); render();
-    status('Desat a Personal ' + (i + 1), 'ok');
+    status(T('Desat a Personal {0}', i + 1), 'ok');
   }
 
   function ok(it) {
-    if (it.kind === 'preset') applySettings(BUILTIN[it.i].s, 'Perfil ' + BUILTIN[it.i].name + ' aplicat');
+    if (it.kind === 'preset') applySettings(BUILTIN[it.i].s, T('Perfil {0} aplicat', T(BUILTIN[it.i].name)));
     else if (it.kind === 'custom') {
-      if (cfg.custom[it.i]) applySettings(cfg.custom[it.i], 'Personal ' + (it.i + 1) + ' aplicat');
+      if (cfg.custom[it.i]) applySettings(cfg.custom[it.i], T('Personal {0} aplicat', it.i + 1));
       else saveCustom(it.i);
     } else if (it.kind === 'schedOn') adjust(it, cfg.schedOn ? -1 : 1);
+    else if (it.kind === 'lang') adjust(it, 1);
     else if (it.kind === 'sched') {
       var e = cfg.sched[it.i], n = BUILTIN.length + cfg.custom.length, p = e.p;
       do { p = (p + 1) % n; } while (!presetByIndex(p));
@@ -336,6 +347,7 @@
   });
 
   /* ---------- start ---------- */
+  translatePage();
   buildItems();
   render();
   loadConfig(function () {
