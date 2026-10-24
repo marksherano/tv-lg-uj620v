@@ -23,7 +23,7 @@ Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada 
 |---|---|
 | [`brillo/`](brillo) | **Brillo+** — control de retroiluminación, brillo, contraste, color, ahorro de energía… con perfiles (Día, Tarde, Noche, Cine, 3 personales) y programación horaria. |
 | [`cat3/`](cat3) | **3Cat Lite** — cliente no oficial de 3Cat para TVs en las que la app nueva no es compatible: directos, guía de programación, últimos vídeos, programas A–Z, búsqueda, subtítulos, favoritos, «Seguir viendo» y capítulo siguiente automático (cuenta atrás de 10 s al acabar). |
-| [`remote/`](remote) | **Mando web** — servidor Node que corre en la TV (puerto 8080) con una página para el móvil: flechas, volumen, apps, entradas, mensajes en pantalla, apagar pantalla, ahorro de energía, temporizador de apagado y **encender la TV** (Wake-on-LAN a través de tvlinks). **Teclado**: cuando la TV abre un campo de texto (navegador, Wi-Fi, Jellyfin Lite…) el móvil lo avisa y lo que escribes sale en la TV en directo. Incluye **Enviar a la TV** (`/envia`: fotos, vídeos y enlaces de YouTube, 3Cat, RTVE, Atresplayer… también desde el menú **Compartir** de Android y del iPhone), **Estadísticas** (`/estadistiques`: tiempo de uso por día y por app) y **Estado de la TV** (`/estat`: temperatura, memoria, disco, red, servicios en marcha, apps instaladas y registros de arranque). |
+| [`remote/`](remote) | **Mando web** — servidor Node que corre en la TV (puerto 8080) con una página para el móvil organizada como el mando de LG (flechas, volumen, canales, teclas de colores y números, ajustes, lista de entradas, teletexto…; las teclas actúan al levantar el dedo, así que desplazar la página o el gesto de inicio del iPhone no pulsan ninguna), apps, entradas, mensajes en pantalla, apagar pantalla, ahorro de energía, temporizador de apagado y **encender la TV** (Wake-on-LAN a través de tvlinks). **Teclado**: cuando la TV abre un campo de texto (navegador, Wi-Fi, Jellyfin Lite…) el móvil lo avisa y lo que escribes sale en la TV en directo. Incluye **Enviar a la TV** (`/envia`: varias fotos y vídeos a la vez y enlaces de YouTube, 3Cat, RTVE, Atresplayer… también desde el menú **Compartir** de Android y del iPhone), **Enviados** (`/enviats`: revisar, volver a abrir y borrar lo enviado, uno a uno, una selección o todo), **Estadísticas** (`/estadistiques`: tiempo de uso por día y por app) y **Estado de la TV** (`/estat`: temperatura, memoria, disco, red, servicios en marcha, apps instaladas y registros de arranque). |
 | [`jellyfin/`](jellyfin) | **Jellyfin Lite** — cliente ligero de [Jellyfin](https://jellyfin.org): inicio con «Seguir viendo», «Siguientes capítulos» y novedades, una pestaña por biblioteca (A–Z, novedades, no vistos…), series por temporadas, ficha con sinopsis, búsqueda, subtítulos, cambio de audio, botón para saltar la intro y los créditos y capítulo siguiente automático. Entra con Quick Connect (un código en pantalla) o usuario y contraseña, y guarda la posición en el servidor. Reproduce directamente MP4/MOV (H.264, HEVC) y WebM; el resto (MKV…) lo convierte el servidor a HLS. |
 | [`pantalla/`](pantalla) | **Pantalla** — app de la TV que muestra lo que se envía desde el móvil: fotos (pase automático) y vídeos (incluido HEVC `.mov` del iPhone). |
 | [`arrencada/`](arrencada) | **Arrencada** — app invisible que la TV abre sola al encenderse y que activa los servicios de Homebrew Channel (telnet, ssh, mando…) sin tener que abrirlo. |
@@ -181,6 +181,8 @@ Si algo va mal:
 - **iPhone**: un atajo «Envia a la TV» que manda cada elemento compartido a `POST /api/compartir`.
   El servidor acepta una foto, un vídeo o cualquier cosa que contenga un enlace, y las fotos que
   llegan seguidas salen juntas en el mismo pase. Los pasos también están en `/envia`.
+- Todo lo enviado (archivos y los 50 últimos enlaces) aparece en `/enviats`, donde se puede volver a
+  abrir en la TV o borrar. Los archivos también se borran solos a los 7 días.
 
 ## Enlaces de vídeo con yt-dlp
 
@@ -208,9 +210,11 @@ En la TV, copia [`remote/config.example.json`](remote/config.example.json) como
 Con la TV apagada no hay ningún servidor que responda, así que la enciende tvlinks con un paquete
 Wake-on-LAN. Hay que tener activado en el menú de la TV *Red → Encender con el móvil* (`wolwowlOnOff`).
 El mando le pasa la MAC de la TV al arrancar (`/wake/register`; tvlinks la guarda en `wake.json`, fuera
-del repositorio) y la página `<servicio>/tv` tiene el botón de encender: cuando la TV responde, abre el
-mando. En Android, la app del mando instalada va allí sola si la TV no responde. Para un atajo del iPhone
-basta con `GET <servicio>/wake`.
+del repositorio). La página `<servicio>/tv` es la app para poner en la pantalla de inicio del móvil
+(«TV», con icono propio): mientras la TV responde muestra el mando dentro, y cuando está apagada, el
+botón de encender; lo comprueba cada 5 s, así que encender o apagar la TV desde donde sea la hace
+cambiar. El mando abierto por sí solo va allí cuando la TV deja de responder, y en Android la app del
+mando instalada va allí sola si la TV no responde. Para un atajo del iPhone basta con `GET <servicio>/wake`.
 
 ### Saltar la intro en Jellyfin Lite
 
@@ -223,7 +227,10 @@ capítulo (o cuando acaba), propone el siguiente con una cuenta atrás de 10 s.
 
 - El navegador de las apps es Chromium 38: **solo ES5** (nada de `let`, `const`, funciones flecha…).
 - `PalmSystem.platformBack()` no hace nada: para salir de una app, `window.close()`.
-- Teclas desde root: `luna://com.webos.service.networkinput/sendSpecialKey {"key":"UP"}`.
+- Teclas desde root: `luna://com.webos.service.networkinput/sendSpecialKey {"key":"UP"}`. Los nombres
+  que conoce están en `strings /usr/sbin/network-input-service` (`QMENU`, `LIST`, `TELETEXT`, `TEXTOPTION`,
+  `ASPECT_RATIO`, `LIVE_ZOOM`, `RECORD`…); no hay ninguno para subtítulos, AD ni búsqueda. La lista de
+  entradas es la app `com.webos.app.inputmgr`.
 - Las apps de Homebrew pueden ejecutar órdenes como root con `luna://org.webosbrew.hbchannel.service/exec`.
 - API pública de 3Cat: `api.3cat.cat/videos`, `api.3cat.cat/programestv`, `api.3cat.cat/v2/graellatvfutur` (programación) y
   `api-media.3cat.cat/pvideo/media.jsp` (MP4 para los vídeos, HLS para los directos, subtítulos VTT).

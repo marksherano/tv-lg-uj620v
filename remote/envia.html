@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#111318">
 <title data-t>Envia a la TV</title>
@@ -12,17 +12,18 @@
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { margin: 0; background: #111318; color: #eef0f3; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 480px; margin: 0 auto; padding: 14px 16px 40px; }
+  main { max-width: 480px; margin: 0 auto; padding: 14px 16px calc(60px + env(safe-area-inset-bottom, 0px)); }
   header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
   header a { color: #8b93a1; text-decoration: none; font-size: 15px; }
   h1 { font-size: 20px; margin: 0; flex: 1; }
   h2 { font-size: 13px; font-weight: 600; color: #8b93a1; text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 8px; }
   .big { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  label.btn, button { font: inherit; color: inherit; border: 0; background: #1f232b; border-radius: 14px;
+  label.btn, a.btn, button { font: inherit; color: inherit; border: 0; background: #1f232b; border-radius: 14px;
     display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
-  label.btn { height: 96px; font-size: 18px; flex-direction: column; }
-  label.btn span { font-size: 34px; }
-  label.btn:active, button:active { background: #353b47; }
+  label.btn, a.btn { height: 96px; font-size: 18px; flex-direction: column; text-decoration: none; text-align: center; }
+  label.btn span, a.btn span { font-size: 34px; }
+  label.btn:active, a.btn:active, button:active { background: #353b47; }
+  .more { display: block; text-align: center; color: #8fb6ff; text-decoration: none; font-size: 15px; padding: 12px 0 0; }
   input[type=file] { display: none; }
   .row { display: flex; gap: 8px; }
   .row input { flex: 1; min-width: 0; height: 50px; border-radius: 14px; border: 1px solid #2c313b; background: #181b21;
@@ -59,8 +60,8 @@
   <header><a href="/" data-t>‹ Comandament</a><h1 data-t>Envia a la TV</h1></header>
 
   <div class="big">
-    <label class="btn"><span>🖼</span><b style="font-weight:inherit" data-t>Fotos</b><input id="fPhotos" type="file" accept="image/*" multiple></label>
-    <label class="btn"><span>🎬</span><b style="font-weight:inherit" data-t>Vídeo</b><input id="fVideo" type="file" accept="video/*"></label>
+    <label class="btn"><span>🖼</span><b style="font-weight:inherit" data-t>Fotos i vídeos</b><input id="fMedia" type="file" accept="image/*,video/*" multiple></label>
+    <a class="btn" href="/enviats"><span>🗂</span><b style="font-weight:inherit" data-t>Enviats</b></a>
   </div>
   <div id="prog"><div class="bar"><div class="fill" id="fill"></div></div><div class="txt" id="ptxt"></div></div>
   <div id="st"></div>
@@ -72,6 +73,7 @@
   <div class="grid" id="recent"></div>
   <button id="all" data-t>▶ Passi de totes les fotos</button>
   <p class="muted" data-t>Toca una miniatura per tornar-la a mostrar. Els fitxers s'esborren sols al cap de 7 dies.</p>
+  <a class="more" id="seeAll" href="/enviats" data-t>Revisa i esborra tot el que s'ha enviat ›</a>
 
   <h2 data-t>Des del menú Compartir del mòbil</h2>
   <details id="dAndroid">
@@ -134,20 +136,25 @@
   async function sendFiles(list) {
     if (!list.length) return;
     var prog = document.getElementById('prog'); prog.style.display = 'block';
-    var names = [];
+    // one at a time; a file the TV refuses (HEIC, unknown format) does not stop the others
+    var names = [], errs = [];
+    for (var i = 0; i < list.length; i++) {
+      try { names.push(await upload(list[i], i, list.length)); }
+      catch (e) { errs.push((list[i].name || T('fitxer')) + ': ' + e.message); }
+    }
+    var fail = errs.length ? ' · ' + T('{0} no enviats', errs.length) + ' (' + errs.join('; ') + ')' : '';
     try {
-      for (var i = 0; i < list.length; i++) names.push(await upload(list[i], i, list.length));
+      if (!names.length) throw new Error(errs.join('; '));
       status(T('Obrint a la TV…'));
       var r = await (await fetch('/api/share/show?f=' + encodeURIComponent(names.join('|')), { method: 'POST' })).json();
-      status(r.returnValue ? (names.length > 1 ? T('{0} fitxers a la TV ✓', names.length) : T('A la TV ✓')) : T('Error: {0}', r.errorText || r.error), r.returnValue ? 'ok' : 'err');
+      status(r.returnValue ? (names.length > 1 ? T('{0} fitxers a la TV ✓', names.length) : T('A la TV ✓')) + fail : T('Error: {0}', r.errorText || r.error),
+        r.returnValue && !errs.length ? 'ok' : 'err');
     } catch (e) { status(T('Error: {0}', e.message), 'err'); }
     prog.style.display = 'none'; document.getElementById('fill').style.width = '0';
     refresh();
   }
-  ['fPhotos', 'fVideo'].forEach(function (id) {
-    var el = document.getElementById(id);
-    el.addEventListener('change', function () { sendFiles(Array.prototype.slice.call(el.files)); el.value = ''; });
-  });
+  var fMedia = document.getElementById('fMedia');
+  fMedia.addEventListener('change', function () { sendFiles(Array.prototype.slice.call(fMedia.files)); fMedia.value = ''; });
 
   async function openUrl() {
     var u = document.getElementById('u').value.trim(); if (!u) return;
@@ -168,7 +175,9 @@
       recentFiles = r.files || [];
       document.getElementById('free').textContent = r.freeMB != null ? T('· {0} MB lliures', r.freeMB) : '';
       var g = document.getElementById('recent'); g.innerHTML = '';
-      recentFiles.forEach(function (f) {
+      document.getElementById('seeAll').textContent = T("Revisa i esborra tot el que s'ha enviat ›") +
+        (recentFiles.length + (r.links || []).length ? ' (' + (recentFiles.length + (r.links || []).length) + ')' : '');
+      recentFiles.slice(0, 6).forEach(function (f) {
         var d = document.createElement('div'); d.className = 'it';
         if (f.type === 'photo') d.style.backgroundImage = 'url("/share/' + encodeURIComponent(f.file) + '")'; else d.textContent = '🎬';
         d.innerHTML += '<div class="nm"></div><div class="del">✕</div>';

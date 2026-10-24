@@ -1,5 +1,5 @@
 /* Web remote for the LG TV. Runs on the TV itself (node 0.12, ES5) as root.
-   GET /            -> remote page (also /envia and /estadistiques)
+   GET /            -> remote page (also /envia, /enviats, /estadistiques and /estat)
    GET /api/...     -> JSON reads; anything that acts on the TV is POST /api/... and only accepted from
                        this server's own pages (see apiGuard). Every action is whitelisted and run with
                        execFile (no shell).
@@ -12,7 +12,7 @@ var execFile = require('child_process').execFile;
 
 var PORT = 8080;
 var PAGES = { '/': 'index.html', '/index.html': 'index.html', '/envia': 'envia.html', '/estadistiques': 'stats.html',
-  '/estat': 'estat.html' };
+  '/estat': 'estat.html', '/enviats': 'enviats.html' };
 // static files besides the page (icons for the browser tab / phone home screen)
 var STATIC = {
   '/icon-32.png': 'image/png', '/icon-180.png': 'image/png', '/icon-192.png': 'image/png',
@@ -23,7 +23,9 @@ var STATIC = {
 var KEYS = ['UP', 'DOWN', 'LEFT', 'RIGHT', 'ENTER', 'BACK', 'HOME', 'EXIT', 'MENU', 'INFO',
   'VOLUMEUP', 'VOLUMEDOWN', 'MUTE', 'CHANNELUP', 'CHANNELDOWN', 'PLAY', 'PAUSE', 'STOP',
   'REWIND', 'FASTFORWARD', 'RED', 'GREEN', 'YELLOW', 'BLUE', 'POWER',
-  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+  // names found in network-input-service; this firmware has no key for subtitles, AD or search
+  'QMENU', 'LIST', 'TELETEXT', 'TEXTOPTION', 'ASPECT_RATIO', 'LIVE_ZOOM', 'RECORD', 'RECENT', 'DASH'];
 
 function luna(uri, params, cb, asApp) {
   var args = ['-n', '1'];

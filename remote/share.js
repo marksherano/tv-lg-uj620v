@@ -14,6 +14,8 @@ var BASE = 'http://127.0.0.1:8080/share/';
 // of the LAN (tvlinks/tvlinks.py), whose address is in config.json: {"tvlinks": "http://host:8097"}.
 // Content with DRM cannot be played.
 var CONFIG = path.join(__dirname, 'config.json');
+// Links sent to the TV (newest first, last 50) so /enviats can list, reopen and delete them
+var LINKS = path.join(DIR, '.links.json');
 
 var TYPES = {
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp',
@@ -32,7 +34,10 @@ module.exports = function (luna, send) {
   function kind(file) { return /^video\//.test(TYPES[path.extname(file).toLowerCase()] || '') ? 'video' : 'photo'; }
 
   function files() {
-    return fs.readdirSync(DIR).filter(function (f) { return TYPES[path.extname(f).toLowerCase()]; }).map(function (f) {
+    // dot files are uploads still in progress (and .links.json)
+    return fs.readdirSync(DIR).filter(function (f) {
+      return f.charAt(0) !== '.' && TYPES[path.extname(f).toLowerCase()];
+    }).map(function (f) {
       var st = fs.statSync(path.join(DIR, f));
       return { file: f, size: st.size, mtime: st.mtime.getTime(), type: kind(f) };
     }).sort(function (a, b) { return b.mtime - a.mtime; });
@@ -54,6 +59,19 @@ module.exports = function (luna, send) {
     });
   }
   cleanup(0, function () {});
+
+  function links() {
+    try { return JSON.parse(fs.readFileSync(LINKS, 'utf8')); } catch (e) { return []; }
+  }
+  function saveLinks(l) {
+    try { fs.writeFileSync(LINKS, JSON.stringify(l.slice(0, 50))); } catch (e) { console.log('links: ' + e.message); }
+  }
+  function remember(u, title) {
+    var l = links(), old = l.filter(function (x) { return x.u === u; })[0];
+    l = l.filter(function (x) { return x.u !== u; });
+    l.unshift({ u: u, title: title || (old && old.title) || '', at: Date.now() });
+    saveLinks(l);
+  }
   setInterval(function () { cleanup(0, function () {}); }, 3600000);
 
   function showItems(names, res, start) {
@@ -103,6 +121,7 @@ module.exports = function (luna, send) {
   function openUrl(q, res) {
     var u = String(q.u || '').trim(), m;
     if (!/^https?:\/\//i.test(u)) return send(res, 400, { error: T('enllaç no vàlid') });
+    remember(u);
     if ((m = /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/))([A-Za-z0-9_-]{11})/.exec(u))) {
       // the app's own deeplinkingParams format ("v=$CONTENTID"); a full URL just opens the home screen.
       // A running YouTube ignores it (and so does DIAL), so it is closed first; relaunched sooner than
@@ -188,16 +207,24 @@ module.exports = function (luna, send) {
         var all = files();
         execFile('df', ['-m', DIR], function (err, out) {
           var m = /\s(\d+)\s+\d+%/.exec(out || '');
-          send(res, 200, { files: all.slice(0, 60), freeMB: m ? +m[1] : null });
+          send(res, 200, { files: all, links: links(), freeMB: m ? +m[1] : null });
         });
       });
     },
 
-    // POST /api/share/delete?f=name
+    // POST /api/share/delete?f=a|b|c[&l=<link>&l=<link>…]   or ?all=1 (every file and link)
     remove: function (q, res) {
-      var name = path.basename(String(q.f || ''));
-      if (!TYPES[path.extname(name).toLowerCase()]) return send(res, 400, { error: T('nom invàlid') });
-      fs.unlink(path.join(DIR, name), function (err) { send(res, 200, { returnValue: !err }); });
+      var names = q.all === '1' ? files().map(function (f) { return f.file; })
+        : String(q.f || '').split('|').filter(Boolean).map(function (f) { return path.basename(f); });
+      var drop = q.all === '1' ? null : [].concat(q.l || []).map(String);
+      if (names.some(function (n) { return n.charAt(0) === '.' || !TYPES[path.extname(n).toLowerCase()]; })) {
+        return send(res, 400, { error: T('nom invàlid') });
+      }
+      if (!names.length && drop && !drop.length) return send(res, 400, { error: T('nom invàlid') });
+      var gone = 0;
+      names.forEach(function (n) { try { fs.unlinkSync(path.join(DIR, n)); gone++; } catch (e) { /* already gone */ } });
+      if (!drop || drop.length) saveLinks(drop ? links().filter(function (x) { return drop.indexOf(x.u) < 0; }) : []);
+      send(res, 200, { returnValue: true, files: gone });
     },
 
     // POST /api/share/url?u=<link>  — YouTube, 3Cat, a direct photo/video URL or any page yt-dlp knows
@@ -224,6 +251,7 @@ module.exports = function (luna, send) {
         try { j = JSON.parse(body); } catch (e) { return fail(T('resposta estranya del servei tvlinks')); }
         if (!j.url) return fail(j.error ? T(j.error) : T("no s'ha trobat el vídeo"));   // tvlinks answers in Catalan
         done = true;
+        if (j.title) remember(u, j.title);
         show(j.url, 'video', j.title || u, res);
       });
     });

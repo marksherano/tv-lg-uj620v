@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#111318">
+<title data-t>Enviats a la TV</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="manifest" href="/manifest.json">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: #111318; color: #eef0f3; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  main { max-width: 480px; margin: 0 auto; padding: 14px 16px calc(60px + env(safe-area-inset-bottom, 0px)); }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  header a { color: #8b93a1; text-decoration: none; font-size: 15px; }
+  h1 { font-size: 20px; margin: 0; flex: 1; }
+  h2 { font-size: 13px; font-weight: 600; color: #8b93a1; text-transform: uppercase; letter-spacing: 1px; margin: 22px 0 8px; }
+  button { font: inherit; color: inherit; border: 0; background: #1f232b; border-radius: 12px; height: 42px; padding: 0 14px;
+    font-size: 15px; cursor: pointer; }
+  button:active { background: #353b47; }
+  button.on { background: #2b4a7a; color: #fff; }
+  button.red { background: #5a1f27; }
+  button:disabled { opacity: .4; }
+  #sum { font-size: 14px; color: #8b93a1; margin-bottom: 10px; }
+  /* actions stay at the top while scrolling: the bottom edge is where the iPhone swipe starts */
+  .bar { position: -webkit-sticky; position: sticky; top: 0; z-index: 5; background: #111318; padding: 8px 0;
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .bar .sp { flex: 1; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; }
+  .chips button { height: 34px; border-radius: 17px; font-size: 14px; padding: 0 12px; white-space: nowrap; }
+  #selBar { display: none; } body.sel #selBar { display: flex; } body.sel #normBar { display: none; }
+  #selN { font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .it { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #1f232b center / cover no-repeat;
+    display: flex; align-items: center; justify-content: center; font-size: 34px; cursor: pointer; }
+  .it .nm { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; padding: 3px 5px; background: rgba(0,0,0,.6);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ck { position: absolute; top: 6px; left: 6px; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff;
+    background: rgba(0,0,0,.35); display: none; font-size: 14px; line-height: 20px; text-align: center; color: transparent; }
+  body.sel .ck { display: block; }
+  .picked .ck { background: #2f7df6; border-color: #2f7df6; color: #fff; }
+  .picked { outline: 3px solid #2f7df6; outline-offset: -3px; }
+  .ln { position: relative; display: flex; align-items: center; gap: 10px; background: #181b21; border-radius: 12px; padding: 10px 12px;
+    margin-bottom: 8px; cursor: pointer; }
+  .ln .ck { position: static; flex: none; }
+  .ln .tx { flex: 1; min-width: 0; }
+  .ln .t1 { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ln .t2 { font-size: 12px; color: #8b93a1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ln.picked { outline: 2px solid #2f7df6; }
+  #st { font-size: 14px; color: #8b93a1; min-height: 20px; }
+  #st.err { color: #ff7676; } #st.ok { color: #6bdc8c; }
+  .muted { color: #8b93a1; font-size: 13px; }
+  .empty { color: #8b93a1; font-size: 15px; text-align: center; padding: 30px 0; }
+  #wipe { width: 100%; height: 48px; margin-top: 26px; }
+  .langsel { margin: 26px 0 0; text-align: center; }
+  .langsel select { font: inherit; font-size: 14px; color: #c8ccd4; background: #1f232b; border: 0; border-radius: 10px; padding: 8px 12px; }
+</style>
+<script src="/i18n.js"></script>
+</head>
+<body>
+<main>
+  <header><a href="/envia" data-t>‹ Envia</a><h1 data-t>Enviats</h1><a href="/" data-t>Comandament</a></header>
+  <div id="sum"></div>
+
+  <div class="bar" id="normBar">
+    <div class="chips">
+      <button data-f="all" class="on" data-t>Tot</button>
+      <button data-f="photo" data-t>Fotos</button>
+      <button data-f="video" data-t>Vídeos</button>
+      <button data-f="link" data-t>Enllaços</button>
+    </div>
+    <span class="sp"></span>
+    <button id="selOn" data-t>Selecciona</button>
+  </div>
+  <div class="bar" id="selBar">
+    <button id="selOff">✕</button><span id="selN"></span><span class="sp"></span>
+    <button id="selAll" data-t>Tots</button>
+    <button id="selShow" data-t>▶ TV</button>
+    <button id="selDel" class="red" data-t>🗑 Esborra</button>
+  </div>
+  <div id="st"></div>
+
+  <div id="files"></div>
+  <div id="linksBox"><h2 data-t>Enllaços</h2><div id="links"></div></div>
+  <div class="empty" id="empty" data-t>No hi ha res enviat.</div>
+
+  <p class="muted" data-t>Toca un element per tornar-lo a obrir a la TV. Les fotos i els vídeos s'esborren sols al cap de 7 dies; dels enllaços es guarden els 50 últims.</p>
+  <button id="wipe" class="red" data-t>🗑 Esborra-ho tot</button>
+
+  <div class="langsel"><select id="lang" aria-label="Idioma / Language"></select></div>
+</main>
+<script>
+  translatePage(); langPicker();
+  var st = document.getElementById('st');
+  function status(t, cls) { st.textContent = t; st.className = cls || ''; }
+  function $(id) { return document.getElementById(id); }
+
+  var data = { files: [], links: [] }, filter = 'all', selecting = false, picked = {};
+  function key(kind, id) { return kind + ':' + id; }
+  function when(ms) {
+    try { return new Date(ms).toLocaleString(LANG, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+    catch (e) { return new Date(ms).toLocaleString(); }
+  }
+  function mb(b) { return b < 1048576 ? Math.max(1, Math.round(b / 1024)) + ' KB' : (b / 1048576).toFixed(1) + ' MB'; }
+  function host(u) { var m = /^https?:\/\/(?:www\.)?([^\/?#]+)/.exec(u); return m ? m[1] : u; }
+
+  async function load() {
+    try {
+      data = await (await fetch('/api/share/list')).json();
+      data.files = data.files || []; data.links = data.links || [];
+    } catch (e) { return status(T('Sense connexió amb la TV'), 'err'); }
+    var bytes = data.files.reduce(function (a, f) { return a + f.size; }, 0);
+    var photos = data.files.filter(function (f) { return f.type === 'photo'; }).length;
+    $('sum').textContent = T('{0} fotos · {1} vídeos · {2} enllaços', photos, data.files.length - photos, data.links.length) +
+      (bytes ? ' · ' + mb(bytes) : '') + (data.freeMB != null ? ' · ' + T('{0} MB lliures', data.freeMB) : '');
+    // forget selections of things that no longer exist
+    var have = {};
+    data.files.forEach(function (f) { have[key('f', f.file)] = 1; });
+    data.links.forEach(function (l) { have[key('l', l.u)] = 1; });
+    Object.keys(picked).forEach(function (k) { if (!have[k]) delete picked[k]; });
+    render();
+  }
+
+  function render() {
+    var fs = data.files.filter(function (f) { return filter === 'all' || filter === f.type; });
+    var ls = filter === 'all' || filter === 'link' ? data.links : [];
+    var g = $('files'); g.innerHTML = '';
+    // files grouped by day, newest first
+    var day = null, grid = null;
+    fs.forEach(function (f) {
+      var d = new Date(f.mtime).toDateString();
+      if (d !== day) {
+        day = d;
+        var h = document.createElement('h2');
+        try { h.textContent = new Date(f.mtime).toLocaleDateString(LANG, { weekday: 'long', day: 'numeric', month: 'long' }); }
+        catch (e) { h.textContent = d; }
+        g.appendChild(h);
+        grid = document.createElement('div'); grid.className = 'grid'; g.appendChild(grid);
+      }
+      var k = key('f', f.file), el = document.createElement('div');
+      el.className = 'it' + (picked[k] ? ' picked' : '');
+      if (f.type === 'photo') el.style.backgroundImage = 'url("/share/' + encodeURIComponent(f.file) + '")'; else el.textContent = '🎬';
+      el.innerHTML += '<div class="ck">✓</div><div class="nm"></div>';
+      el.querySelector('.nm').textContent = f.file.replace(/^\d+-/, '') + ' · ' + mb(f.size);
+      el.addEventListener('click', function () { selecting ? toggle(k, el) : showFiles([f.file]); });
+      grid.appendChild(el);
+    });
+    var lb = $('links'); lb.innerHTML = '';
+    ls.forEach(function (l) {
+      var k = key('l', l.u), el = document.createElement('div');
+      el.className = 'ln' + (picked[k] ? ' picked' : '');
+      el.innerHTML = '<div class="ck">✓</div><div class="tx"><div class="t1"></div><div class="t2"></div></div><div>🔗</div>';
+      el.querySelector('.t1').textContent = l.title || host(l.u);
+      el.querySelector('.t2').textContent = when(l.at) + ' · ' + (l.title ? host(l.u) : l.u);
+      el.addEventListener('click', function () { selecting ? toggle(k, el) : openLink(l.u); });
+      lb.appendChild(el);
+    });
+    $('linksBox').style.display = ls.length ? '' : 'none';
+    $('empty').style.display = fs.length || ls.length ? 'none' : '';
+    $('wipe').style.display = data.files.length || data.links.length ? '' : 'none';
+    selCount();
+  }
+
+  function toggle(k, el) {
+    if (picked[k]) delete picked[k]; else picked[k] = 1;
+    el.classList.toggle('picked', !!picked[k]);
+    selCount();
+  }
+  function selCount() {
+    var n = Object.keys(picked).length;
+    $('selN').textContent = T('{0} seleccionats', n);
+    $('selShow').disabled = $('selDel').disabled = !n;
+  }
+  function setSel(on) {
+    selecting = on; picked = {};
+    document.body.classList.toggle('sel', on);
+    render();
+  }
+  $('selOn').addEventListener('click', function () { setSel(true); });
+  $('selOff').addEventListener('click', function () { setSel(false); });
+  $('selAll').addEventListener('click', function () {
+    var visible = data.files.filter(function (f) { return filter === 'all' || filter === f.type; }).map(function (f) { return key('f', f.file); })
+      .concat(filter === 'all' || filter === 'link' ? data.links.map(function (l) { return key('l', l.u); }) : []);
+    var all = visible.every(function (k) { return picked[k]; });
+    visible.forEach(function (k) { if (all) delete picked[k]; else picked[k] = 1; });
+    render();
+  });
+  document.querySelectorAll('[data-f]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      filter = b.getAttribute('data-f');
+      document.querySelectorAll('[data-f]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      render();
+    });
+  });
+
+  function chosen(kind) {
+    return Object.keys(picked).filter(function (k) { return k.indexOf(kind + ':') === 0; }).map(function (k) { return k.slice(2); });
+  }
+
+  async function showFiles(names) {
+    if (!names.length) return status(T('Els enllaços no es poden posar en un passi: obre-los d\'un en un.'), 'err');
+    // in the order they were sent, oldest first, like a slideshow
+    names = data.files.filter(function (f) { return names.indexOf(f.file) >= 0; }).map(function (f) { return f.file; }).reverse();
+    try {
+      var r = await (await fetch('/api/share/show?f=' + encodeURIComponent(names.join('|')), { method: 'POST' })).json();
+      status(r.returnValue ? T('A la TV ✓') : T('Error: {0}', r.errorText || r.error), r.returnValue ? 'ok' : 'err');
+    } catch (e) { status(T('Sense connexió amb la TV'), 'err'); }
+  }
+  async function openLink(u) {
+    status(T('Obrint… (una web de vídeo pot trigar uns segons)'));
+    try {
+      var r = await (await fetch('/api/share/url?u=' + encodeURIComponent(u), { method: 'POST' })).json();
+      status(r.returnValue ? T('A la TV ✓') : T('Error: {0}', r.error || r.errorText), r.returnValue ? 'ok' : 'err');
+    } catch (e) { status(T('Sense connexió amb la TV'), 'err'); }
+    load();
+  }
+  $('selShow').addEventListener('click', function () { showFiles(chosen('f')); });
+
+  async function del(query, msg) {
+    if (!confirm(msg)) return;
+    try {
+      var r = await (await fetch('/api/share/delete?' + query, { method: 'POST' })).json();
+      status(r.returnValue ? T('Esborrat ✓') : T('Error: {0}', r.error || r.errorText), r.returnValue ? 'ok' : 'err');
+    } catch (e) { status(T('Sense connexió amb la TV'), 'err'); }
+    setSel(false); load();
+  }
+  $('selDel').addEventListener('click', function () {
+    var f = chosen('f'), l = chosen('l');
+    var q = 'f=' + encodeURIComponent(f.join('|')) + l.map(function (u) { return '&l=' + encodeURIComponent(u); }).join('');
+    del(q, T('Esborrar {0} elements de la TV?', f.length + l.length));
+  });
+  $('wipe').addEventListener('click', function () {
+    del('all=1', T('Esborrar TOTES les fotos, vídeos i enllaços enviats ({0})?', data.files.length + data.links.length));
+  });
+
+  load();
+</script>
+</body>
+</html>
