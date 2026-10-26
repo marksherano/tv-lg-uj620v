@@ -17,12 +17,16 @@ echo "last input: $last"
 luna-send -n 1 luna://com.webos.applicationManager/launch "{\"id\":\"$last\"}"; echo
 
 luna-send -n 1 luna://org.webosbrew.hbchannel.service/autostart '{}'; echo
-# wait for the startup hooks; debloat restarts SAM, which closes the app we just launched
-i=0
-while [ $i -lt 60 ] && { [ ! -f /tmp/webosbrew_startup ] || pgrep -f 'run-parts /var/lib/webosbrew/init.d' >/dev/null; }; do
+# wait for the startup hooks; debloat restarts SAM, which closes the app we just launched.
+# autostart returns before startup.sh is done: it creates /tmp/webosbrew_startup as it starts and
+# removes its failsafe flag as the very last step (10 s after the init.d hooks)
+FS=/var/luna/preferences/webosbrew_failsafe
+sleep 2
+i=2
+while [ $i -lt 90 ] && { [ ! -f /tmp/webosbrew_startup ] || [ -e $FS ]; }; do
     sleep 1; i=$((i + 1))
 done
-sleep 3
+sleep 2
 fg=$(luna-send -n 1 luna://com.webos.applicationManager/getForegroundAppInfo '{}' | sed -n 's/.*"appId": *"\([^"]*\)".*/\1/p')
 echo "after startup (${i}s): foreground '$fg'"
 [ "$fg" = "$last" ] || luna-send -n 1 luna://com.webos.applicationManager/launch "{\"id\":\"$last\"}"

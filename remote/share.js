@@ -181,8 +181,8 @@ module.exports = function (luna, send) {
         if (err) { res.writeHead(404); return res.end(); }
         var range = /bytes=(\d*)-(\d*)/.exec(req.headers.range || '');
         if (range) {
-          var start = range[1] ? +range[1] : st.size - +range[2], end = range[1] && range[2] ? +range[2] : st.size - 1;
-          if (start >= st.size) { res.writeHead(416, { 'Content-Range': 'bytes */' + st.size }); return res.end(); }
+          var start = range[1] ? +range[1] : Math.max(0, st.size - +range[2]), end = range[1] && range[2] ? +range[2] : st.size - 1;
+          if (start >= st.size || start > end) { res.writeHead(416, { 'Content-Range': 'bytes */' + st.size }); return res.end(); }
           end = Math.min(end, st.size - 1);
           res.writeHead(206, { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1,
                                'Content-Range': 'bytes ' + start + '-' + end + '/' + st.size });

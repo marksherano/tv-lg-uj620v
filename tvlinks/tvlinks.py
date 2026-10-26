@@ -130,11 +130,17 @@ function T(s) { return D[s] || s; }
 document.documentElement.lang = D['TV de casa'] ? (L === 'es' ? 'es' : 'en') : 'ca';
 document.title = T('Encén la TV'); document.getElementById('h').textContent = T('TV de casa');
 var b = document.getElementById('b'), st = document.getElementById('st'), f = document.getElementById('f');
-var tv = null, tries = 0, ups = 0, waking = false, shown = false, offs = 0;
+var tv = null, tries = 0, upSince = 0, waking = false, shown = false, offs = 0;
 st.textContent = T('Comprovant si la TV és encesa…');
 // this server checks whether the TV answers (browsers may block requests to other LAN hosts)
 function check(cb) { fetch('wake/tv', { cache: 'no-store' }).then(function (r) { return r.json(); })
-  .then(function (j) { tv = j.tv; cb(j.on, j.up); }, function () { cb(false, false); }); }
+  .then(function (j) {
+    tv = j.tv;
+    // after a real boot the TV answers a minute or so before the remote has started: only a TV that
+    // has been answering for a while without it is "on but no remote"
+    upSince = j.up && !j.on ? upSince || Date.now() : 0;
+    cb(j.on, upSince && Date.now() - upSince > 90000);
+  }, function () { cb(false, false); }); }
 // the TV is on but its remote server is not running: only opening Homebrew Channel starts it
 var NOREMOTE = "La TV és encesa, però el comandament no s'ha engegat. Obre l'app Homebrew Channel a la TV.";
 function openRemote() {
@@ -149,16 +155,17 @@ function closeRemote(msg) {
   b.disabled = false; st.textContent = T(msg);
 }
 function poll() {
-  check(function (on, up) {
+  check(function (on, stuck) {
     if (on) { st.textContent = T('Encesa! Obrint el comandament…'); return openRemote(); }
-    // give the remote server time to start after the TV wakes (it is up in a few seconds)
-    if (up && ++ups > 8) st.textContent = T(NOREMOTE);
-    if (++tries > 30) { waking = false; b.disabled = false; st.textContent = T('No respon. Comprova que «Encén amb el mòbil» està activat al menú de la TV.'); return; }
+    // the TV answering means it woke up: wait for the remote (a real boot takes up to ~2 min) and,
+    // if it does not come, tell why instead of blaming the Wake-on-LAN setting
+    if (stuck) { waking = false; b.disabled = false; st.textContent = T(NOREMOTE); return; }
+    if (++tries > 30 && !upSince) { waking = false; b.disabled = false; st.textContent = T('No respon. Comprova que «Encén amb el mòbil» està activat al menú de la TV.'); return; }
     setTimeout(poll, 2000);
   });
 }
 b.onclick = function () {
-  b.disabled = true; tries = 0; ups = 0; waking = true; st.textContent = T('Enviant…');
+  b.disabled = true; tries = 0; waking = true; st.textContent = T('Enviant…');
   fetch('wake', { method: 'POST' }).then(function (r) { return r.json(); }).then(function (j) {
     if (j.error) { waking = false; b.disabled = false; st.textContent = T(j.error); return; }
     tv = j.tv; st.textContent = T('Encenent la TV…'); poll();
@@ -167,9 +174,9 @@ b.onclick = function () {
 // keep watching: the remote appears when the TV answers, the button when it stops answering
 function watch() {
   if (document.hidden || waking) return;
-  check(function (on, up) {
+  check(function (on, stuck) {
     if (on) { offs = 0; return openRemote(); }
-    if (!shown) { if (!b.disabled) st.textContent = T(up ? NOREMOTE : 'Prem el botó per encendre-la'); return; }
+    if (!shown) { if (!b.disabled) st.textContent = T(stuck ? NOREMOTE : 'Prem el botó per encendre-la'); return; }
     if (++offs >= 2) closeRemote("La TV s'ha apagat. Prem el botó per tornar-la a encendre");
   });
 }

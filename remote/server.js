@@ -68,6 +68,10 @@ function lanHost(h) {
     /\.(local|lan|home|internal|home\.arpa)$/.test(h);
 }
 
+// Nothing restarts this server until the next boot (or opening Homebrew Channel), so one unexpected
+// error in a request (a file deleted meanwhile, a full disk…) must not take the whole remote down.
+process.on('uncaughtException', function (e) { console.log('error: ' + (e && e.stack || e)); });
+
 var msgs = require('./msgs.js'), T = msgs.T;
 var share = require('./share.js')(luna, send);
 var stats = require('./stats.js')(luna, send);
@@ -100,22 +104,27 @@ function sleepMsg(ms) {
 }
 
 function cancelCustom() {
-  if (custom) { clearTimeout(custom.warn); clearTimeout(custom.off); custom = null; }
+  if (custom) { clearInterval(custom.tick); custom = null; }
 }
 
+// Checked against the clock rather than with one setTimeout: node's timers stand still while the TV
+// sleeps (Quick Start), so they would fire late, maybe just after the TV has been turned on again.
 function startCustom(ms) {
   cancelCustom();
-  var c = custom = { end: Date.now() + ms };
+  var c = custom = { end: Date.now() + ms, warned: ms <= 90000 };
   var warn = T("⏻ La TV s'apagarà d'aquí a 1 minut");   // in the language of whoever set the timer
-  if (ms > 90000) c.warn = setTimeout(function () { toast(warn); }, ms - 60000);
-  c.off = setTimeout(function () {
-    custom = null;
+  c.tick = setInterval(function () {
+    var left = c.end - Date.now();
+    if (!c.warned && left <= 60000) { c.warned = true; if (left > 0) toast(warn); }
+    if (left > 0) return;
+    cancelCustom();
+    if (left < -120000) return;   // the TV was asleep when the time came: it is off already
     // POWER toggles: only press it if the TV is still on (it may have been turned off by hand)
     luna('luna://com.webos.service.tvpower/power/getPowerState', {}, function (r) {
       if (['Active', 'Screen Off', 'Screen Saver'].indexOf(r.state) < 0) return;
       luna('luna://com.webos.service.networkinput/sendSpecialKey', { key: 'POWER' }, function () {});
     });
-  }, ms);
+  }, 5000);
 }
 
 // "23:15" -> ms until the next time the clock shows it (today or tomorrow)
@@ -277,6 +286,8 @@ http.createServer(function (req, res) {
   if (p === '/api/state') return state(function (s) { send(res, 200, s); });
 
   send(res, 404, { error: 'not found' });
+}).on('error', function (e) {
+  console.log('listen: ' + e.message); process.exit(1);   // port taken: let the other server keep it
 }).listen(PORT, '0.0.0.0', function () {
   console.log('remote listening on ' + PORT);
   setTimeout(registerWake, 20000);
