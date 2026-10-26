@@ -56,6 +56,11 @@
   #kbSt.on { color: #6bdc8c; }
   a.lnk { display: flex; align-items: center; justify-content: center; height: 50px; border-radius: 14px;
     background: #1d2a44; color: #cfe0ff; text-decoration: none; font-size: 15px; }
+  /* app tiles built from /api/apps: the TV's own icon on its home bar colour, title below */
+  button.app { height: auto; padding: 8px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
+  .app i { width: 52px; height: 52px; border-radius: 12px; background: #2c313b center / 76% no-repeat; }
+  .app span { font-size: 12px; color: #c8ccd4; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app.on span { color: #fff; }
   .langsel { margin: 26px 0 0; text-align: center; }
   .langsel select { font: inherit; font-size: 14px; color: #c8ccd4; background: #1f232b; border: 0; border-radius: 10px; padding: 8px 12px; }
 </style>
@@ -144,7 +149,8 @@
   </div>
 
   <h2>Apps</h2>
-  <div class="row r3">
+  <!-- replaced by the TV's installed apps (/api/apps); these stay if that fails -->
+  <div class="row r3" id="apps">
     <button data-app="com.webos.app.livetv" class="small">📡 TV</button>
     <button data-app="cat.tresc.lite" class="small">3Cat Lite</button>
     <button data-app="youtube.leanback.v4" class="small">YouTube</button>
@@ -220,6 +226,7 @@
       document.getElementById('vol').textContent = s.muted ? T('🔇 silenci') : '🔈 ' + s.volume;
       mark('data-energy', s.energy);
       mark('data-sleep', s.sleep);
+      mark('data-app', curApp = s.app);
       var on = s.sleep && s.sleep !== 'off';
       document.getElementById('sleepSt').textContent = !on ? T('desactivat')
         : s.sleepLeft != null ? T("a les {0} (d'aquí a {1})", s.sleepAt, fmtMin(s.sleepLeft))
@@ -232,7 +239,7 @@
   }
   // The TV stopped answering (turned off): inside the "Encén la TV" app (tvlinks) tell it, so it
   // shows its power button; opened on its own, go to that page.
-  var framed = window.top !== window, fails = 0;
+  var framed = window.top !== window, fails = 0, curApp = '';
   function lost() {
     if (framed) window.parent.postMessage('tv-off', '*');
     else if (wakeUrl) location.replace(wakeUrl);
@@ -274,9 +281,27 @@
       api('key?k=' + k).then(function () { if (/VOLUME|MUTE/.test(k)) setTimeout(refresh, 300); });
     }, REPEAT[k]);
   });
-  document.querySelectorAll('[data-app]').forEach(function (b) {
+  function appBtn(b) {
     tap(b, function () { api('launch?id=' + encodeURIComponent(b.getAttribute('data-app'))).then(function () { setTimeout(refresh, 1500); }); });
-  });
+  }
+  document.querySelectorAll('[data-app]').forEach(appBtn);
+
+  // the apps installed on the TV, in the order of its home bar, with their icons
+  fetch('/api/apps').then(function (r) { return r.json(); }).then(function (j) {
+    if (!j.apps || !j.apps.length) return;
+    var box = document.getElementById('apps');
+    box.innerHTML = ''; box.className = 'row r4';
+    j.apps.forEach(function (a) {
+      var b = document.createElement('button'), i = document.createElement('i'), s = document.createElement('span');
+      b.className = 'app'; b.setAttribute('data-app', a.id); b.title = a.title;
+      i.style.backgroundImage = 'url(/api/appicon?id=' + encodeURIComponent(a.id) + ')';
+      if (/^#[0-9a-f]{3,8}$/i.test(a.color)) i.style.backgroundColor = a.color;
+      s.textContent = a.title;
+      b.appendChild(i); b.appendChild(s); box.appendChild(b);
+      appBtn(b);
+    });
+    mark('data-app', curApp);
+  }).catch(function () {});
   var more = document.getElementById('more');
   try { more.open = localStorage.getItem('more') === '1'; } catch (e) { /* no storage */ }
   more.addEventListener('toggle', function () { try { localStorage.setItem('more', more.open ? '1' : '0'); } catch (e) { /* no storage */ } });
