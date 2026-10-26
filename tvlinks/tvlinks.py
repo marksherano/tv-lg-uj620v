@@ -49,6 +49,14 @@ def load_tv():
         return None
 
 
+def answers(ip, port):
+    try:
+        socket.create_connection((ip, port), timeout=1.5).close()
+        return True
+    except OSError:
+        return False
+
+
 def wake():
     tv = load_tv()
     if not tv:
@@ -106,6 +114,7 @@ var L = (navigator.language || '').slice(0, 2), D = {
     'No respon. Comprova que «Encén amb el mòbil» està activat al menú de la TV.': 'No responde. Comprueba que «Encender con el móvil» está activado en el menú de la TV.',
     'Enviant…': 'Enviando…', 'Encenent la TV…': 'Encendiendo la TV…', 'Error de connexió': 'Error de conexión',
     'Comprovant si la TV és encesa…': 'Comprobando si la TV está encendida…',
+    "La TV és encesa, però el comandament no s'ha engegat. Obre l'app Homebrew Channel a la TV.": 'La TV está encendida, pero el mando no se ha iniciado. Abre la app Homebrew Channel en la TV.',
     "La TV s'ha apagat. Prem el botó per tornar-la a encendre": 'La TV se ha apagado. Pulsa el botón para volver a encenderla',
     "la TV encara no s'ha registrat (ha d'estar encesa un cop amb el comandament en marxa)": 'la TV todavía no se ha registrado (tiene que estar encendida una vez con el mando en marcha)' },
   en: { 'Encén la TV': 'Turn on the TV', 'TV de casa': 'Home TV', 'Prem el botó per encendre-la': 'Press the button to turn it on',
@@ -113,6 +122,7 @@ var L = (navigator.language || '').slice(0, 2), D = {
     'No respon. Comprova que «Encén amb el mòbil» està activat al menú de la TV.': "It doesn't answer. Check that “Turn on via Mobile” is on in the TV menu.",
     'Enviant…': 'Sending…', 'Encenent la TV…': 'Turning on the TV…', 'Error de connexió': 'Connection error',
     'Comprovant si la TV és encesa…': 'Checking whether the TV is on…',
+    "La TV és encesa, però el comandament no s'ha engegat. Obre l'app Homebrew Channel a la TV.": "The TV is on, but the remote has not started. Open the Homebrew Channel app on the TV.",
     "La TV s'ha apagat. Prem el botó per tornar-la a encendre": 'The TV turned off. Press the button to turn it on again',
     "la TV encara no s'ha registrat (ha d'estar encesa un cop amb el comandament en marxa)": 'the TV has not registered yet (it must be on once with the remote server running)' }
 }[L === 'ca' ? '' : L === 'es' ? 'es' : 'en'] || {};
@@ -120,11 +130,13 @@ function T(s) { return D[s] || s; }
 document.documentElement.lang = D['TV de casa'] ? (L === 'es' ? 'es' : 'en') : 'ca';
 document.title = T('Encén la TV'); document.getElementById('h').textContent = T('TV de casa');
 var b = document.getElementById('b'), st = document.getElementById('st'), f = document.getElementById('f');
-var tv = null, tries = 0, waking = false, shown = false, offs = 0;
+var tv = null, tries = 0, ups = 0, waking = false, shown = false, offs = 0;
 st.textContent = T('Comprovant si la TV és encesa…');
 // this server checks whether the TV answers (browsers may block requests to other LAN hosts)
 function check(cb) { fetch('wake/tv', { cache: 'no-store' }).then(function (r) { return r.json(); })
-  .then(function (j) { tv = j.tv; cb(j.on); }, function () { cb(false); }); }
+  .then(function (j) { tv = j.tv; cb(j.on, j.up); }, function () { cb(false, false); }); }
+// the TV is on but its remote server is not running: only opening Homebrew Channel starts it
+var NOREMOTE = "La TV és encesa, però el comandament no s'ha engegat. Obre l'app Homebrew Channel a la TV.";
 function openRemote() {
   if (shown || !tv) return;
   shown = true; waking = false; offs = 0;
@@ -137,14 +149,16 @@ function closeRemote(msg) {
   b.disabled = false; st.textContent = T(msg);
 }
 function poll() {
-  check(function (on) {
+  check(function (on, up) {
     if (on) { st.textContent = T('Encesa! Obrint el comandament…'); return openRemote(); }
+    // give the remote server time to start after the TV wakes (it is up in a few seconds)
+    if (up && ++ups > 8) st.textContent = T(NOREMOTE);
     if (++tries > 30) { waking = false; b.disabled = false; st.textContent = T('No respon. Comprova que «Encén amb el mòbil» està activat al menú de la TV.'); return; }
     setTimeout(poll, 2000);
   });
 }
 b.onclick = function () {
-  b.disabled = true; tries = 0; waking = true; st.textContent = T('Enviant…');
+  b.disabled = true; tries = 0; ups = 0; waking = true; st.textContent = T('Enviant…');
   fetch('wake', { method: 'POST' }).then(function (r) { return r.json(); }).then(function (j) {
     if (j.error) { waking = false; b.disabled = false; st.textContent = T(j.error); return; }
     tv = j.tv; st.textContent = T('Encenent la TV…'); poll();
@@ -153,9 +167,9 @@ b.onclick = function () {
 // keep watching: the remote appears when the TV answers, the button when it stops answering
 function watch() {
   if (document.hidden || waking) return;
-  check(function (on) {
+  check(function (on, up) {
     if (on) { offs = 0; return openRemote(); }
-    if (!shown) { if (!b.disabled) st.textContent = T('Prem el botó per encendre-la'); return; }
+    if (!shown) { if (!b.disabled) st.textContent = T(up ? NOREMOTE : 'Prem el botó per encendre-la'); return; }
     if (++offs >= 2) closeRemote("La TV s'ha apagat. Prem el botó per tornar-la a encendre");
   });
 }
@@ -203,12 +217,11 @@ class Handler(BaseHTTPRequestHandler):
             tv = load_tv()
             if not tv:
                 return self.reply(200, {'tv': None, 'on': False})
-            try:
-                socket.create_connection((tv['ip'], tv['port']), timeout=1.5).close()
-                on = True
-            except OSError:
-                on = False
-            return self.reply(200, {'tv': 'http://%s:%d/' % (tv['ip'], tv['port']), 'on': on})
+            on = answers(tv['ip'], tv['port'])
+            # on but no remote: the TV answers on its own LG port (3000) while the remote server is
+            # not running (Homebrew Channel did not start at power-on)
+            up = on or answers(tv['ip'], 3000)
+            return self.reply(200, {'tv': 'http://%s:%d/' % (tv['ip'], tv['port']), 'on': on, 'up': up})
         if u.path == '/wake/register':
             mac = (q.get('mac') or [''])[0].lower()
             port = (q.get('port') or ['8080'])[0]

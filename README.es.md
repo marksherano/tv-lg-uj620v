@@ -105,7 +105,7 @@ python tvtool/install.py brillo cat3
 |---|---|
 | `brillo` | Brillo+ y su servicio de programación (`init.d/brillo`) |
 | `cat3`, `jellyfin`, `pantalla` | La app correspondiente |
-| `arrencada` | Arrencada; la primera vez guarda una copia de `/var/lib/eim` y la registra como entrada |
+| `arrencada` | Arrencada; la primera vez guarda una copia de `/var/lib/eim`; la hace la última entrada de la TV e instala `init.d/arrencada` |
 | `remote` | El mando web en `/media/developer/remote/` y su `init.d/remote` (el `config.json` de la TV no se toca); lo arranca |
 | `debloat` | El script de limpieza en `init.d/debloat`; se aplica al reiniciar |
 
@@ -126,10 +126,13 @@ apagados con el mando.
 [webosbrew-autostart](https://github.com/webosbrew/webosbrew-autostart), sin tocar nada del sistema:
 
 - Está registrada como «app de entrada» (`com.webos.service.eim/addDevice`) y es la última entrada
-  guardada en `/var/lib/eim`, así que la TV la abre al encenderse.
-- Al abrirse lanza `boot.sh` como root: monta una copia de `/var/lib/eim` encima (el original ya no
+  guardada en `/var/lib/eim/lastinput`, así que la TV la abre al encenderse. Seleccionar la entrada no
+  escribe ese fichero; lo hace `arm.sh` con `com.webos.service.eim/setLastInput` (`{"type":"MVPD_IP","appId":"cat.arrencada"}`).
+- Al abrirse lanza `boot.sh` como root: con `arm.sh` monta una copia de `/var/lib/eim` encima (el original ya no
   cambia nunca), se oculta de la lista de entradas, vuelve a la última entrada real (o la TV) y llama a
   `org.webosbrew.hbchannel.service/autostart`, que es lo que hace la app de Homebrew Channel.
+- `init.d/arrencada` también ejecuta `arm.sh`: si alguna vez la TV se enciende sin Arrencada (el mando no
+  responde después de encenderla), abrir a mano Homebrew Channel una vez la deja lista para el próximo encendido.
 - Si `restart sam` (de `debloat`) cierra la app que se había abierto, la vuelve a abrir. El registro queda en `/tmp/arrencada.log`.
 
 Se instala con `python tvtool/install.py arrencada` (para quitarla, ver [Desinstalar y recuperar](#desinstalar-y-recuperar)).
@@ -139,6 +142,7 @@ Se instala con `python tvtool/install.py arrencada` (para quitarla, ver [Desinst
 | [`tvtool/debloat`](tvtool/debloat) | `/var/lib/webosbrew/init.d/debloat` — bloquea dominios de anuncios/telemetría, desactiva LivePlus y apps promocionales, oculta apps del menú |
 | [`tvtool/brillo-init`](tvtool/brillo-init) | `/var/lib/webosbrew/init.d/brillo` — arranca el servicio de programación de Brillo+ |
 | [`remote/remote-init`](remote/remote-init) | `/var/lib/webosbrew/init.d/remote` — arranca el mando web |
+| [`tvtool/arrencada-init`](tvtool/arrencada-init) | `/var/lib/webosbrew/init.d/arrencada` — mantiene Arrencada como la entrada que la TV abre al encenderse |
 
 Para deshacer cualquier cambio: borra el archivo correspondiente de `init.d` y reinicia la TV.
 
@@ -156,7 +160,7 @@ python tvtool/install.py --remove brillo cat3 jellyfin pantalla remote debloat a
 | Apps | Las desinstala; `brillo` también quita `init.d/brillo` | Nada (los perfiles de Brillo+ de `/media/developer/brillo/` se pueden borrar a mano) |
 | `remote` | Para el servidor y borra `/media/developer/remote/` e `init.d/remote` | Los archivos compartidos de `/media/developer/share/` |
 | `debloat` | Borra `init.d/debloat`; **hay que reiniciar** para que vuelvan las apps y los dominios bloqueados | LivePlus y la cookie de anuncios quedan apagados; se vuelven a activar en la configuración de la TV |
-| `arrencada` | Desmonta `/var/lib/eim`, devuelve la copia `/var/lib/webosbrew/eim.backup` y desinstala la app; **hay que reiniciar** | Nada |
+| `arrencada` | Borra `init.d/arrencada`, desmonta `/var/lib/eim`, devuelve la copia `/var/lib/webosbrew/eim.backup` y desinstala la app; **hay que reiniciar** | Nada |
 
 Si algo va mal:
 

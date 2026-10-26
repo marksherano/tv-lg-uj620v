@@ -50,9 +50,11 @@ def install_app(sh, folder):
     if folder == 'brillo':
         init_script(sh, 'tvtool/brillo-init', 'brillo')
     if folder == 'arrencada':
-        # keep the untouched input list once, then register the app as an input (see README)
+        # keep the untouched input list once, then make the app the last input in it (see README)
         sh.run('[ -d /var/lib/webosbrew/eim.backup ] || cp -a /var/lib/eim /var/lib/webosbrew/eim.backup', 5)
-        luna(sh, 'luna://com.webos.service.eim/addDevice', {'appId': appid, 'pigImage': '', 'mvpdIcon': ''})
+        init_script(sh, 'tvtool/arrencada-init', 'arrencada', start=False)
+        out = sh.run('sh /media/developer/apps/usr/palm/applications/%s/arm.sh' % appid, 15)
+        check('arm: ok' in out, "no s'ha pogut fer que la TV l'obri en engegar-se:\n" + out)
     say('  fet. Si és nova i no surt a la barra d\'inici, mira el README.')
 
 def remove_app(sh, folder):
@@ -61,8 +63,8 @@ def remove_app(sh, folder):
     if folder == 'brillo':
         sh.run('rm -f %sbrillo; pkill -f cat.brillo.plus/daemon.sh' % INITD, 5)
     if folder == 'arrencada':
-        sh.run('umount /var/lib/eim 2>/dev/null; [ -d /var/lib/webosbrew/eim.backup ] && '
-               'cp -a /var/lib/webosbrew/eim.backup/. /var/lib/eim/ && rm -rf /var/lib/webosbrew/eim', 10)
+        sh.run('rm -f %sarrencada; umount /var/lib/eim 2>/dev/null; [ -d /var/lib/webosbrew/eim.backup ] && '
+               'cp -a /var/lib/webosbrew/eim.backup/. /var/lib/eim/ && rm -rf /var/lib/webosbrew/eim' % INITD, 10)
     st = install_call(sh, 'remove', {'id': appid, 'subscribe': True})
     check(st == 'removed', "la TV no l'ha desinstal·lada: " + st)
     say('  fet.' + (' Reinicia la TV.' if folder == 'arrencada' else ''))

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Re-arms Arrencada (cat.arrencada) — run-parts from webosbrew startup.sh. If the TV started without
+# it, opening Homebrew Channel by hand runs this and the next power-on opens Arrencada again.
+A=/media/developer/apps/usr/palm/applications/cat.arrencada/arm.sh
+[ -f "$A" ] && sh "$A" >>/tmp/arrencada.log 2>&1
+exit 0

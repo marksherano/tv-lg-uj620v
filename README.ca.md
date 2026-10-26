@@ -107,7 +107,7 @@ python tvtool/install.py brillo cat3
 |---|---|
 | `brillo` | Brillo+ i el seu servei de programació (`init.d/brillo`) |
 | `cat3`, `jellyfin`, `pantalla` | L'app corresponent |
-| `arrencada` | Arrencada; la primera vegada desa una còpia de `/var/lib/eim` i la registra com a entrada |
+| `arrencada` | Arrencada; la primera vegada desa una còpia de `/var/lib/eim`; la fa l'última entrada de la TV i instal·la `init.d/arrencada` |
 | `remote` | El comandament web a `/media/developer/remote/` i el seu `init.d/remote` (el `config.json` de la TV no es toca); l'engega |
 | `debloat` | L'script de neteja a `init.d/debloat`; s'aplica en reiniciar |
 
@@ -126,10 +126,13 @@ Homebrew Channel). Amb «Encesa ràpida» activada, tot sobreviu a les apagades 
 [webosbrew-autostart](https://github.com/webosbrew/webosbrew-autostart), sense tocar res del sistema:
 
 - Està registrada com a «app d'entrada» (`com.webos.service.eim/addDevice`) i és l'última entrada
-  desada a `/var/lib/eim`, així que la TV l'obre en engegar-se.
-- En obrir-se llança `boot.sh` com a root: munta una còpia de `/var/lib/eim` a sobre (l'original no
+  desada a `/var/lib/eim/lastinput`, així que la TV l'obre en engegar-se. Seleccionar l'entrada no
+  escriu aquest fitxer; ho fa `arm.sh` amb `com.webos.service.eim/setLastInput` (`{"type":"MVPD_IP","appId":"cat.arrencada"}`).
+- En obrir-se llança `boot.sh` com a root: amb `arm.sh` munta una còpia de `/var/lib/eim` a sobre (l'original no
   canvia mai més), s'amaga de la llista d'entrades, torna a l'última entrada real (o la TV) i crida
   `org.webosbrew.hbchannel.service/autostart`, que és el que fa l'app de Homebrew Channel.
+- `init.d/arrencada` també executa `arm.sh`: si mai la TV s'engega sense Arrencada (el comandament no
+  respon després d'encendre-la), obrir a mà Homebrew Channel un cop la torna a deixar a punt per a la propera engegada.
 - Si `restart sam` (de `debloat`) tanca l'app que s'havia obert, la torna a obrir. El registre queda a `/tmp/arrencada.log`.
 
 S'instal·la amb `python tvtool/install.py arrencada` (per treure-la, vegeu [Desinstal·lar i recuperar](#desinstal·lar-i-recuperar)).
@@ -139,6 +142,7 @@ S'instal·la amb `python tvtool/install.py arrencada` (per treure-la, vegeu [Des
 | [`tvtool/debloat`](tvtool/debloat) | `/var/lib/webosbrew/init.d/debloat` — bloqueja dominis d'anuncis/telemetria, desactiva LivePlus i apps promocionals, amaga apps del menú |
 | [`tvtool/brillo-init`](tvtool/brillo-init) | `/var/lib/webosbrew/init.d/brillo` — arrenca el servei de programació de Brillo+ |
 | [`remote/remote-init`](remote/remote-init) | `/var/lib/webosbrew/init.d/remote` — arrenca el comandament web |
+| [`tvtool/arrencada-init`](tvtool/arrencada-init) | `/var/lib/webosbrew/init.d/arrencada` — manté Arrencada com l'entrada que la TV obre en engegar-se |
 
 Per desfer qualsevol canvi: esborra el fitxer corresponent de `init.d` i reinicia la TV.
 
@@ -156,7 +160,7 @@ python tvtool/install.py --remove brillo cat3 jellyfin pantalla remote debloat a
 | Apps | Les desinstal·la; `brillo` també treu `init.d/brillo` | Res (els perfils de Brillo+ de `/media/developer/brillo/` es poden esborrar a mà) |
 | `remote` | Atura el servidor i esborra `/media/developer/remote/` i `init.d/remote` | Els fitxers compartits de `/media/developer/share/` |
 | `debloat` | Esborra `init.d/debloat`; **cal reiniciar** perquè tornin les apps i els dominis bloquejats | LivePlus i la galeta d'anuncis queden apagats; es tornen a activar a la configuració de la TV |
-| `arrencada` | Desmunta `/var/lib/eim`, hi torna la còpia `/var/lib/webosbrew/eim.backup` i desinstal·la l'app; **cal reiniciar** | Res |
+| `arrencada` | Esborra `init.d/arrencada`, desmunta `/var/lib/eim`, hi torna la còpia `/var/lib/webosbrew/eim.backup` i desinstal·la l'app; **cal reiniciar** | Res |
 
 Si alguna cosa va malament:
 
