@@ -31,7 +31,7 @@ function luna(uri, params, cb, asApp) {
   var args = ['-n', '1'];
   if (asApp) args.push('-a', asApp);
   args.push(uri, JSON.stringify(params || {}));
-  execFile('luna-send', args, { timeout: 10000 }, function (err, out) {
+  execFile('luna-send', args, { timeout: 10000, maxBuffer: 1024 * 1024 }, function (err, out) {
     var r;
     try { r = JSON.parse(out); } catch (e) { r = { returnValue: false, errorText: String(err || out) }; }
     cb(r);
@@ -45,7 +45,7 @@ function send(res, code, obj) {
 
 // Read-only endpoints; every other /api/ path changes something and must be a POST.
 var READS = { '/api/share/list': 1, '/api/stats': 1, '/api/status': 1, '/api/kb': 1, '/api/state': 1,
-  '/api/wakeurl': 1 };
+  '/api/wakeurl': 1, '/api/apps': 1, '/api/appicon': 1 };
 
 // Any web page open on a phone or PC of the LAN could otherwise press keys or turn the TV off
 // (a plain <img src="http://tv:8080/api/key?k=POWER"> or a hidden form). Browsers send Origin on
@@ -172,6 +172,50 @@ function state(cb) {
   });
 }
 
+// Installed apps, in the order of the TV's home bar (db8 appordering: "<appId>_default" or numeric
+// launch point ids, the same values as launchPointId). Inputs (lptype "bookmark") have their own
+// buttons, and system entries that make no sense from a phone are left out.
+var HIDE = /^(cat\.arrencada|com\.webos\.app\.(tvuserguide|connectionwizard|notificationcenter|accessibility|scheduler|inputmgr|voice))$/;
+var apps = null; // { at: ms, list: [{ id, title, color }], icons: { id: path } }
+
+function listApps(cb) {
+  if (apps && Date.now() - apps.at < 5 * 60000) return cb(apps);
+  luna('luna://com.webos.applicationManager/listLaunchPoints', {}, function (r) {
+    if (!r.launchPoints) return cb(apps);   // keep the last good list, if any
+    luna('luna://com.palm.db/find', { query: { from: 'com.webos.launcher.appordering:1' } }, function (o) {
+      var order = o.results && o.results[0] && o.results[0].apps || [], seen = {}, icons = {};
+      var lps = r.launchPoints.filter(function (lp) {
+        if (lp.lptype && lp.lptype !== 'default' || HIDE.test(lp.id) || seen[lp.id]) return false;
+        return (seen[lp.id] = true);
+      });
+      // apps missing from the home bar order go last, in listLaunchPoints order (V8's sort is not stable)
+      lps.forEach(function (lp, n) {
+        var i = order.indexOf(lp.launchPointId);
+        lp.pos = (i < 0 ? order.length : i) * 1000 + n;
+      });
+      lps.sort(function (a, b) { return a.pos - b.pos; });
+      var list = lps.map(function (lp) {
+        icons[lp.id] = lp.largeIcon || lp.icon;
+        return { id: lp.id, title: lp.title, color: lp.iconColor || lp.bgColor || '' };
+      });
+      apps = { at: Date.now(), list: list, icons: icons };
+      cb(apps);
+    }, 'com.webos.surfacemanager');
+  });
+}
+
+function appIcon(q, res) {
+  listApps(function (a) {
+    var f = a && a.icons[String(q.id || '')];
+    if (!f || !/\.(png|jpe?g)$/i.test(f)) { res.writeHead(404); return res.end(); }
+    fs.readFile(f, function (err, data) {
+      if (err) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': /png$/i.test(f) ? 'image/png' : 'image/jpeg', 'Cache-Control': 'max-age=604800' });
+      res.end(data);
+    });
+  });
+}
+
 http.createServer(function (req, res) {
   var u = require('url').parse(req.url, true), q = u.query, p = u.pathname;
   msgs.use(req);
@@ -284,6 +328,12 @@ http.createServer(function (req, res) {
   }
 
   if (p === '/api/state') return state(function (s) { send(res, 200, s); });
+  if (p === '/api/apps') {
+    return listApps(function (a) {
+      if (a) send(res, 200, { apps: a.list }); else send(res, 502, { error: 'listLaunchPoints' });
+    });
+  }
+  if (p === '/api/appicon') return appIcon(q, res);
 
   send(res, 404, { error: 'not found' });
 }).on('error', function (e) {
