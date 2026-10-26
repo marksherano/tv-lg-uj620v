@@ -23,6 +23,7 @@ Apps y herramientas caseras para una **LG 49UJ620V** (2017, webOS 3.9) rooteada 
 |---|---|
 | [`brillo/`](brillo) | **Brillo+** — control de retroiluminación, brillo, contraste, color, ahorro de energía… con perfiles (Día, Tarde, Noche, Cine, 3 personales) y programación horaria. |
 | [`cat3/`](cat3) | **3Cat Lite** — cliente no oficial de 3Cat para TVs en las que la app nueva no es compatible: directos, guía de programación, últimos vídeos, programas A–Z, búsqueda, subtítulos, favoritos, «Seguir viendo» y capítulo siguiente automático (cuenta atrás de 10 s al acabar). |
+| [`sx3/`](sx3) | **SX3 Lite** — solo el canal infantil de 3Cat, más ligera que la app oficial: SX3 en directo con la programación del día, series para los pequeños y para los mayores (solo las que tienen capítulos), últimos capítulos, búsqueda, «Mis series», «Seguir viendo» y capítulo siguiente automático. Todo el texto en mayúsculas, más fácil para los niños que aprenden a leer. |
 | [`remote/`](remote) | **Mando web** — servidor Node que corre en la TV (puerto 8080) con una página para el móvil organizada como el mando de LG (flechas, volumen, canales, teclas de colores y números, ajustes, lista de entradas, teletexto…; las teclas actúan al levantar el dedo, así que desplazar la página o el gesto de inicio del iPhone no pulsan ninguna), apps, entradas, mensajes en pantalla, apagar pantalla, ahorro de energía, temporizador de apagado y **encender la TV** (Wake-on-LAN a través de tvlinks). **Teclado**: cuando la TV abre un campo de texto (navegador, Wi-Fi, Jellyfin Lite…) el móvil lo avisa y lo que escribes sale en la TV en directo. Incluye **Enviar a la TV** (`/envia`: varias fotos y vídeos a la vez y enlaces de YouTube, 3Cat, RTVE, Atresplayer… también desde el menú **Compartir** de Android y del iPhone), **Enviados** (`/enviats`: revisar, volver a abrir y borrar lo enviado, uno a uno, una selección o todo), **Estadísticas** (`/estadistiques`: tiempo de uso por día y por app) y **Estado de la TV** (`/estat`: temperatura, memoria, disco, red, servicios en marcha, apps instaladas y registros de arranque). |
 | [`jellyfin/`](jellyfin) | **Jellyfin Lite** — cliente ligero de [Jellyfin](https://jellyfin.org): inicio con «Seguir viendo», «Siguientes capítulos» y novedades, una pestaña por biblioteca (A–Z, novedades, no vistos…), series por temporadas, ficha con sinopsis, búsqueda, subtítulos, cambio de audio, botón para saltar la intro y los créditos y capítulo siguiente automático. Entra con Quick Connect (un código en pantalla) o usuario y contraseña, y guarda la posición en el servidor. Reproduce directamente MP4/MOV (H.264, HEVC) y WebM; el resto (MKV…) lo convierte el servidor a HLS. |
 | [`pantalla/`](pantalla) | **Pantalla** — app de la TV que muestra lo que se envía desde el móvil: fotos (pase automático) y vídeos (incluido HEVC `.mov` del iPhone). |
@@ -47,7 +48,7 @@ Las apps y el mando web están en **catalán, castellano e inglés**. Empiezan e
 | App | Dónde se cambia |
 |---|---|
 | Brillo+ | Fila **Idioma**, al final de la columna derecha (◀ ▶) |
-| 3Cat Lite | Última pestaña de la barra de arriba (OK) |
+| 3Cat Lite, SX3 Lite | Última pestaña de la barra de arriba (OK) |
 | Jellyfin Lite | Pestaña **Ajustes** → **Idioma** |
 | Mando web | Selector al pie de cada página; los avisos que salen en la TV siguen el idioma del móvil |
 | Pantalla | Usa el idioma del móvil que envía las fotos |
@@ -104,7 +105,7 @@ python tvtool/install.py brillo cat3
 | Nombre | Qué instala |
 |---|---|
 | `brillo` | Brillo+ y su servicio de programación (`init.d/brillo`) |
-| `cat3`, `jellyfin`, `pantalla` | La app correspondiente |
+| `cat3`, `sx3`, `jellyfin`, `pantalla` | La app correspondiente |
 | `arrencada` | Arrencada; la primera vez guarda una copia de `/var/lib/eim`; la hace la última entrada de la TV e instala `init.d/arrencada` |
 | `remote` | El mando web en `/media/developer/remote/` y su `init.d/remote` (el `config.json` de la TV no se toca); lo arranca |
 | `debloat` | El script de limpieza en `init.d/debloat`; se aplica al reiniciar |
@@ -152,7 +153,7 @@ Nada de este proyecto toca el firmware: las apps son apps de desarrollador norma
 arranque solo hacen cambios que desaparecen al reiniciar. Todo se deshace con `--remove`:
 
 ```bash
-python tvtool/install.py --remove brillo cat3 jellyfin pantalla remote debloat arrencada
+python tvtool/install.py --remove brillo cat3 sx3 jellyfin pantalla remote debloat arrencada
 ```
 
 | Qué | Qué hace `--remove` | Qué queda |

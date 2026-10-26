@@ -23,6 +23,7 @@ Home-made apps and tools for an **LG 49UJ620V** (2017, webOS 3.9) rooted with
 |---|---|
 | [`brillo/`](brillo) | **Brillo+** — backlight, brightness, contrast, colour, energy saving… with profiles (Day, Evening, Night, Cinema, 3 custom ones) and a schedule. |
 | [`cat3/`](cat3) | **3Cat Lite** — unofficial 3Cat client for TVs the new app doesn't support: live channels, TV guide, latest videos, A–Z shows, search, subtitles, favourites, "Continue watching" and automatic next episode (10 s countdown at the end). |
+| [`sx3/`](sx3) | **SX3 Lite** — just 3Cat's children's channel, lighter than the official app: SX3 live with what is on today, shows for little ones and for older kids (only the ones with episodes), latest episodes, search, "My shows", "Continue watching" and automatic next episode. All text in capital letters, easier for children who are learning to read. |
 | [`remote/`](remote) | **Web remote** — Node server running on the TV (port 8080) with a page for the phone laid out like the LG remote (arrows, volume, channels, colour and number keys, settings, input hub, teletext…; keys act when the finger lifts, so scrolling or the iPhone home swipe never presses one), apps, inputs, on-screen messages, screen off, energy saving, sleep timer and **turning the TV on** (Wake-on-LAN through tvlinks). **Keyboard**: when the TV opens a text field (browser, Wi-Fi, Jellyfin Lite…) the phone tells you and what you type shows up on the TV live. Includes **Send to TV** (`/envia`: several photos and videos at once and YouTube, 3Cat, RTVE, Atresplayer… links, also from the Android and iPhone **Share** menu), **Sent** (`/enviats`: review, reopen and delete what was sent, one by one, a selection or everything), **Statistics** (`/estadistiques`: usage time per day and per app) and **TV status** (`/estat`: temperature, memory, disk, network, running services, installed apps and boot logs). |
 | [`jellyfin/`](jellyfin) | **Jellyfin Lite** — lightweight [Jellyfin](https://jellyfin.org) client: home with "Continue watching", "Next up" and recently added, one tab per library (A–Z, recently added, unwatched…), shows by season, details with synopsis, search, subtitles, audio track switching, skip intro and credits button and automatic next episode. Sign in with Quick Connect (a code on screen) or user and password; playback position is saved on the server. Plays MP4/MOV (H.264, HEVC) and WebM directly; the server converts everything else (MKV…) to HLS. |
 | [`pantalla/`](pantalla) | **Pantalla** — TV app that shows what the phone sends: photos (slideshow) and videos (including iPhone HEVC `.mov`). |
@@ -47,7 +48,7 @@ phone's) language, falling back to English, and remember the one you pick:
 | App | Where to change it |
 |---|---|
 | Brillo+ | **Language** row, at the bottom of the right column (◀ ▶) |
-| 3Cat Lite | Last tab of the top bar (OK) |
+| 3Cat Lite, SX3 Lite | Last tab of the top bar (OK) |
 | Jellyfin Lite | **Settings** tab → **Language** |
 | Web remote | Selector at the bottom of each page; on-screen messages on the TV follow the phone's language |
 | Pantalla | Follows the language of the phone that sends the photos |
@@ -104,7 +105,7 @@ python tvtool/install.py brillo cat3
 | Name | What it installs |
 |---|---|
 | `brillo` | Brillo+ and its schedule service (`init.d/brillo`) |
-| `cat3`, `jellyfin`, `pantalla` | The matching app |
+| `cat3`, `sx3`, `jellyfin`, `pantalla` | The matching app |
 | `arrencada` | Arrencada; the first time it keeps a copy of `/var/lib/eim`; makes the app the TV's last input and installs `init.d/arrencada` |
 | `remote` | The web remote in `/media/developer/remote/` and its `init.d/remote` (the TV's `config.json` is left alone); starts it |
 | `debloat` | The clean-up script in `init.d/debloat`; applied at the next restart |
@@ -152,7 +153,7 @@ Nothing in this project touches the firmware: the apps are ordinary developer ap
 scripts only make changes that go away on restart. Everything is undone with `--remove`:
 
 ```bash
-python tvtool/install.py --remove brillo cat3 jellyfin pantalla remote debloat arrencada
+python tvtool/install.py --remove brillo cat3 sx3 jellyfin pantalla remote debloat arrencada
 ```
 
 | What | What `--remove` does | What is left |
