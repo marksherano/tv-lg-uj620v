@@ -1,12 +1,12 @@
 # install.py [--remove] WHAT...   — install (or remove) things on the TV in one step, from any console
-#   apps:   brillo cat3 jellyfin pantalla arrencada  (builds the ipk, uploads it and installs it)
+#   apps:   brillo cat3 sx3 jellyfin pantalla arrencada  (builds the ipk, uploads it and installs it)
 #   others: remote  (web remote server + its boot script)   debloat  (boot script, applied at next boot)
 # Needs the root telnet shell (Homebrew Channel) and TV_IP if the TV is not at 192.168.1.37.
 import json, os, re, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE); import tsh, push
 
-APPS = ['brillo', 'cat3', 'jellyfin', 'pantalla', 'arrencada']
+APPS = ['brillo', 'cat3', 'sx3', 'jellyfin', 'pantalla', 'arrencada']
 INITD = '/var/lib/webosbrew/init.d/'
 REMOTE = '/media/developer/remote/'
 
