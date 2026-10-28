@@ -177,9 +177,7 @@
     if (it.kind === 'letter') return '<div class="letter">' + esc(it.title) + '</div>';
     if (it.kind === 'fav') {
       var on = isFav(it.id);
-      return '<div class="card act"><div class="img"><div class="big">' + (on ? '★' : '☆') + '</div></div>' +
-        '<div class="t">' + T(on ? 'Als meus programes' : 'Afegeix als meus programes') + '</div>' +
-        '<div class="s">' + T(on ? 'OK per treure-ho' : 'Sortirà a la pestanya Inici') + '</div></div>';
+      return '<div class="chip fav' + (on ? ' on' : '') + '"><span>' + (on ? '★' : '☆') + '</span> ' + T(on ? 'Als meus programes' : 'Afegeix als meus programes') + '</div>';
     }
     var live = it.kind === 'live';
     return '<div class="card' + (live ? ' live' : '') + '"><div class="img" data-img="' + esc(it.img || '') + '">' +
@@ -431,6 +429,9 @@
 
   /* ---------- player ---------- */
   var video = $('video'), playing = null, osdTimer, sources = [], srcIdx = 0;
+  // recovery: retries of the current source, pending retry, last good position, last time it moved,
+  // given up (OK tries again), when the source was (re)loaded
+  var retries = 0, retryTimer = null, lastPos = 0, lastMove = 0, failed = false, loadedAt = 0;
 
   function fmtT(s) {
     s = Math.max(0, Math.floor(s || 0));
@@ -462,10 +463,17 @@
     }
     $('osdState').textContent = video.paused ? T('❚❚ En pausa') : '';
   }
-  setInterval(function () { if (playing) { updOsd(); if (video.ended) onEnded(); } }, 1000);
+  setInterval(function () {
+    if (!playing) return;
+    updOsd();
+    if (video.ended) onEnded();
+    // stuck: not paused but not moving for 20 s (the CDN sometimes stalls without an error event)
+    else if (!video.paused && !failed && !retryTimer && !upnext && Date.now() - lastMove > 20000) recover();
+  }, 1000);
 
   function startPlayer(info) {
     playing = info; sources = info.sources; srcIdx = 0;
+    retries = 0; failed = false; lastPos = info.resume || 0; clearTimeout(retryTimer); retryTimer = null;
     subTracks = []; subIdx = -1; subs = []; showSub('');
     $('player').className = 'player';
     $('osdTitle').textContent = info.title;
@@ -477,6 +485,7 @@
   }
   function loadSource() {
     var s = sources[srcIdx];
+    lastMove = loadedAt = Date.now();
     video.src = s.url;
     video.load();
     video.play();
@@ -487,12 +496,29 @@
     showOsd();
   });
   video.addEventListener('waiting', function () { $('spinner').className = 'spinner'; });
-  video.addEventListener('error', function () {
-    if (!playing) return;
-    if (++srcIdx < sources.length) return loadSource();
-    $('spinner').textContent = T("No s'ha pogut reproduir aquest vídeo");
-    $('spinner').className = 'spinner';
+  video.addEventListener('timeupdate', function () {
+    if (!playing || playing.resume || video.currentTime === lastPos) return;
+    lastPos = video.currentTime; lastMove = Date.now();
+    if (retries && Date.now() - loadedAt > 30000) retries = 0;   // playing fine again
   });
+  video.addEventListener('play', function () { lastMove = Date.now(); });
+  video.addEventListener('error', function () { if (playing) recover(); });
+  // 3Cat's CDN sometimes drops the connection: try the same source again from where it was (3 times,
+  // 2, 4 and 6 s apart), then the next quality; after that OK tries again from the start of the list
+  function recover() {
+    if (!playing || retryTimer || failed) return;
+    if (!playing.live && lastPos > 1) playing.resume = lastPos;
+    if (retries < 3) retries++;
+    else if (srcIdx + 1 < sources.length) { srcIdx++; retries = 1; }
+    else {
+      failed = true;
+      $('spinner').textContent = T("No s'ha pogut reproduir aquest vídeo. Prem OK per tornar-ho a provar");
+      $('spinner').className = 'spinner';
+      return showOsd();
+    }
+    $('spinner').textContent = T('Reconnectant…'); $('spinner').className = 'spinner';
+    retryTimer = setTimeout(function () { retryTimer = null; if (playing) loadSource(); }, 2000 * retries);
+  }
   // 'ended' sometimes comes late after seeking to the end: the OSD timer checks video.ended too
   function onEnded() {
     if (!playing || upnext || playing.endSeen) return;
@@ -554,7 +580,7 @@
   // Remember where a video was left (for "Continuar veient"); finished or barely started videos are dropped.
   function savePos(done) {
     if (!playing || playing.live) return;
-    var p = playing, t = Math.floor(video.currentTime), len = Math.floor(video.duration || 0);
+    var p = playing, t = Math.floor(video.currentTime || lastPos), len = Math.floor(video.duration || 0);
     var finished = done || (len && t > len * 0.95);
     cwPut({ id: p.id, title: p.title, img: p.img, sub: p.sub, dur: p.dur, len: len,
             pos: finished || t < 30 ? 0 : t });
@@ -562,6 +588,7 @@
   function closePlayer() {
     stopUpnext();
     savePos(false);
+    clearTimeout(retryTimer); retryTimer = null; failed = false;
     playing = null; subs = []; showSub('');
     video.pause(); video.removeAttribute('src'); video.load();
     $('player').className = 'player hidden';
@@ -695,6 +722,7 @@
   function playerKey(k) {
     var big = rep > 3;
     if (k === 13 && upnext) { playNext(); return true; }
+    if (k === 13 && failed) { failed = false; retries = 0; srcIdx = 0; recover(); return true; }
     switch (k) {
       case 13: case 415: case 19:
         if (k === 415 || (k === 13 && video.paused)) video.play(); else video.pause();
@@ -718,10 +746,10 @@
       case 38:
         if (f.r === 0) { area = tab === SEARCH ? 'search' : 'tabs'; break; }
         f.r--; f.c = Math.min(f.c, v.rows[f.r].length - 1);
-        if (v.rows[f.r][0].kind === 'letter' || v.rows[f.r][0].kind === 'chip') f.c = row[0].kind === 'chip' ? Math.min(f.c, v.rows[f.r].length - 1) : 0;
+        if (v.rows[f.r][0].kind === 'letter' || v.rows[f.r][0].kind === 'chip' || v.rows[f.r][0].kind === 'fav') f.c = row[0].kind === 'chip' ? Math.min(f.c, v.rows[f.r].length - 1) : 0;
         break;
       case 40:
-        if (f.r < v.rows.length - 1) { var wasLetter = row[0].kind === 'letter' || row[0].kind === 'chip'; f.r++; f.c = wasLetter ? 0 : Math.min(f.c, v.rows[f.r].length - 1); }
+        if (f.r < v.rows.length - 1) { var wasLetter = row[0].kind === 'letter' || row[0].kind === 'chip' || row[0].kind === 'fav'; f.r++; f.c = wasLetter ? 0 : Math.min(f.c, v.rows[f.r].length - 1); }
         break;
       case 13:
         var it = focusedItem(); if (!it) return true;
