@@ -6,10 +6,14 @@
 /* Launched by the TV at boot as the "last input" (see README). All the work is done by boot.sh,
    started in the background as root so it survives `restart sam` from the init.d hooks. */
 (function () {
+  // tvlinks opens it as well when the TV is on without the remote, passing the app to go back to
+  var p = {}, back = '';
+  try { p = JSON.parse(PalmSystem.launchParams || '{}') || {}; } catch (e) {}
+  if (/^[A-Za-z0-9._-]+$/.test(p.back || '')) back = ' ' + p.back;
   var b = new PalmServiceBridge();
   b.onservicecallback = function () { setTimeout(function () { window.close(); }, 3000); };
   b.call('luna://org.webosbrew.hbchannel.service/exec', JSON.stringify({
-    command: 'nohup sh /media/developer/apps/usr/palm/applications/cat.arrencada/boot.sh >/tmp/arrencada.log 2>&1 &'
+    command: 'nohup sh /media/developer/apps/usr/palm/applications/cat.arrencada/boot.sh' + back + ' >>/tmp/arrencada.log 2>&1 &'
   }));
 })();
 </script>

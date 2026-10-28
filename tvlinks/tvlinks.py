@@ -8,6 +8,7 @@ It also turns the TV on, since nothing on the TV answers while it is off: the TV
 Wake-on-LAN packet ("Turn on with mobile" must be on in the TV menu). GET /tv is the phone's "TV" app
 (icon and manifest below): it shows the TV remote inside it while the TV answers, and the power button
 while it does not."""
+import base64
 import ipaddress
 import json
 import os
@@ -15,6 +16,8 @@ import re
 import socket
 import subprocess
 import sys
+import threading
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -73,6 +76,128 @@ def wake():
                 except OSError:
                     pass
     return 200, {'ok': True, 'tv': 'http://%s:%d/' % (tv['ip'], tv['port'])}
+
+
+# --- Starting the remote when the TV is on without it ----------------------------------------------
+# After a power-off the TV may reboot into Quick Start standby and come up with Live TV instead of
+# Arrencada; Wake-on-LAN then only resumes it, so Homebrew Channel's startup (and the remote) never
+# runs. LG's own API (SSAP, WebSocket on port 3000, no root) can still launch apps: open Arrencada,
+# telling it which app to go back to. Pair once with `python3 tvlinks.py pair` (accept the prompt on the TV).
+SSAP_KEY = os.path.join(HERE, 'clientkey.txt')
+SSAP_MANIFEST = {'manifestVersion': 1, 'appVersion': '1.1', 'permissions': ['LAUNCH', 'READ_RUNNING_APPS']}
+STUCK_AFTER = 20    # seconds the TV must answer without the remote (a real boot starts it by itself)
+RELAUNCH_EVERY = 120
+kick = {'since': 0, 'last': 0}
+kick_lock = threading.Lock()
+
+
+def ws_open(ip, port):
+    s = socket.create_connection((ip, port), timeout=10)
+    key = base64.b64encode(os.urandom(16)).decode()
+    s.sendall(('GET / HTTP/1.1\r\nHost: %s:%d\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
+               'Sec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\n\r\n' % (ip, port, key)).encode())
+    head = b''
+    while b'\r\n\r\n' not in head:
+        c = s.recv(1)
+        if not c:
+            raise OSError('websocket handshake closed')
+        head += c
+    if b' 101 ' not in head.split(b'\r\n')[0]:
+        raise OSError('websocket handshake: %r' % head.split(b'\r\n')[0])
+    return s
+
+
+def ws_send(s, text):
+    data = text.encode()
+    n = len(data)
+    head = bytes([0x81]) + (bytes([0x80 | n]) if n < 126 else bytes([0x80 | 126]) + n.to_bytes(2, 'big'))
+    mask = os.urandom(4)
+    s.sendall(head + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(data)))
+
+
+def ws_recv(s):
+    def take(n):
+        buf = b''
+        while len(buf) < n:
+            c = s.recv(n - len(buf))
+            if not c:
+                raise OSError('websocket closed')
+            buf += c
+        return buf
+    msg = b''
+    while True:
+        b0, b1 = take(2)
+        n = b1 & 0x7f
+        if n == 126:
+            n = int.from_bytes(take(2), 'big')
+        elif n == 127:
+            n = int.from_bytes(take(8), 'big')
+        data = take(n)
+        op = b0 & 0x0f
+        if op == 8:
+            raise OSError('websocket closed')
+        if op in (0, 1, 2):
+            msg += data
+            if b0 & 0x80:
+                return json.loads(msg.decode())
+
+
+def ssap(ip, calls, pair=False):
+    """Registers with the stored key and runs [(uri, payload), …]; returns the payloads. With pair=True
+    it asks for a new key instead (the TV shows a prompt to accept) and stores it."""
+    payload = {'pairingType': 'PROMPT', 'manifest': SSAP_MANIFEST}
+    if not pair:
+        with open(SSAP_KEY) as f:
+            payload['client-key'] = f.read().strip()
+    s = ws_open(ip, 3000)
+    if pair:
+        s.settimeout(60)
+    try:
+        ws_send(s, json.dumps({'type': 'register', 'id': 'reg0', 'payload': payload}))
+        while True:
+            m = ws_recv(s)
+            if m.get('type') == 'registered':
+                if pair:
+                    with open(SSAP_KEY, 'w') as f:
+                        f.write(m['payload']['client-key'])
+                break
+            if m.get('type') == 'error':
+                raise OSError('ssap register: %s' % m.get('error'))
+        out = []
+        for i, (uri, payload) in enumerate(calls):
+            ws_send(s, json.dumps({'type': 'request', 'id': 'r%d' % i, 'uri': uri, 'payload': payload}))
+            while True:
+                m = ws_recv(s)
+                if m.get('id') == 'r%d' % i:
+                    out.append(m.get('payload') or {})
+                    break
+        return out
+    finally:
+        s.close()
+
+
+def start_remote(ip):
+    try:
+        fg = ssap(ip, [('ssap://com.webos.applicationManager/getForegroundAppInfo', {})])[0].get('appId') or ''
+        params = {'back': fg} if fg and fg != 'cat.arrencada' else {}
+        ssap(ip, [('ssap://system.launcher/launch', {'id': 'cat.arrencada', 'params': params})])
+        sys.stderr.write('%s started Arrencada (back to %s)\n' % (time.strftime('%d/%b/%Y %H:%M:%S'), fg or '?'))
+    except (OSError, ValueError) as e:
+        sys.stderr.write('%s could not start Arrencada: %s\n' % (time.strftime('%d/%b/%Y %H:%M:%S'), e))
+
+
+def check_stuck(ip, on, up):
+    """Called on every /wake/tv poll: launches Arrencada once the TV has been up without the remote."""
+    now = time.time()
+    with kick_lock:
+        if on or not up:
+            kick['since'] = 0
+            return
+        kick['since'] = kick['since'] or now
+        if now - kick['since'] < STUCK_AFTER or now - kick['last'] < RELAUNCH_EVERY or not os.path.exists(SSAP_KEY):
+            return
+        kick['last'] = now
+    threading.Thread(target=start_remote, args=(ip,), daemon=True).start()
 
 
 WAKE_PAGE = '''<!DOCTYPE html>
@@ -228,6 +353,7 @@ class Handler(BaseHTTPRequestHandler):
             # on but no remote: the TV answers on its own LG port (3000) while the remote server is
             # not running (Homebrew Channel did not start at power-on)
             up = on or answers(tv['ip'], 3000)
+            check_stuck(tv['ip'], on, up)
             return self.reply(200, {'tv': 'http://%s:%d/' % (tv['ip'], tv['port']), 'on': on, 'up': up})
         if u.path == '/wake/register':
             mac = (q.get('mac') or [''])[0].lower()
@@ -271,4 +397,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
+    if sys.argv[1:] == ['pair']:
+        tv = load_tv() or sys.exit('the TV has not registered yet')
+        ssap(tv['ip'], [], pair=True)
+        print('paired, key in %s' % SSAP_KEY)
+        sys.exit()
     ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()

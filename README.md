@@ -220,6 +220,14 @@ button; it checks every 5 s, so turning the TV off or on from anywhere switches 
 on its own, goes to that page when the TV stops answering, and on Android the installed remote app goes
 there by itself when the TV doesn't answer. For an iPhone shortcut, `GET <service>/wake` is enough.
 
+Sometimes, after being turned off, the TV reboots into Quick Start standby and comes back with TV
+instead of Arrencada; Wake-on-LAN then only wakes it and the remote never starts. So when the TV has
+answered on LG's own port (3000) for 20 s without the remote, tvlinks opens Arrencada through LG's API
+(SSAP, no root), passing the app on screen so it goes back to it; Arrencada starts Homebrew Channel or,
+if that already ran, just the remote. It only happens while the `/tv` page is open and needs pairing once:
+run `python3 ~/tvlinks/tvlinks.py pair` and accept the prompt on the TV (the key stays in
+`~/tvlinks/clientkey.txt`).
+
 ### Skipping the intro in Jellyfin Lite
 
 Jellyfin Lite uses the server's segments (`/MediaSegments`, Jellyfin 10.10 or later), filled by a
