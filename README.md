@@ -223,11 +223,11 @@ there by itself when the TV doesn't answer. For an iPhone shortcut, `GET <servic
 Sometimes, after being turned off, the TV reboots into Quick Start standby and comes back with TV
 instead of Arrencada (the first power-on after that reboot opens the app of whatever turned it on: the
 on timer opens its own app, Live TV); waking or turning it on with the remote then only resumes it and
-the remote never starts. So when the TV has
-answered on LG's own port (3000) for 20 s without the remote, tvlinks opens Arrencada through LG's API
+the remote never starts. So when the TV answers on LG's own port (3000) without the remote (for 20 s
+while the `/tv` page is open; tvlinks also checks every 30 s by itself and waits 60 s), tvlinks opens Arrencada through LG's API
 (SSAP, no root), passing the app on screen so it goes back to it; Arrencada starts Homebrew Channel or,
 if that already ran, just the remote. Meanwhile the page hides the power button and says the remote is
-starting. It only happens while the `/tv` page is open and needs pairing once:
+starting. It needs pairing once:
 run `python3 ~/tvlinks/tvlinks.py pair` and accept the prompt on the TV (the key stays in
 `~/tvlinks/clientkey.txt`).
 
