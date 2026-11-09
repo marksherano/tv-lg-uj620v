@@ -87,6 +87,8 @@ SSAP_KEY = os.path.join(HERE, 'clientkey.txt')
 SSAP_MANIFEST = {'manifestVersion': 1, 'appVersion': '1.1', 'permissions': ['LAUNCH', 'READ_RUNNING_APPS']}
 STUCK_AFTER = 20    # seconds the TV must answer without the remote (a real boot starts it by itself)
 RELAUNCH_EVERY = 120
+WATCH_EVERY = 30    # tvlinks also checks by itself, so the remote is ready before the phone page is opened
+WATCH_STUCK = 60    # with nobody waiting it gives a real boot more time to start the remote on its own
 kick = {'since': 0, 'last': 0}
 kick_lock = threading.Lock()
 
@@ -186,15 +188,16 @@ def start_remote(ip):
         sys.stderr.write('%s could not start Arrencada: %s\n' % (time.strftime('%d/%b/%Y %H:%M:%S'), e))
 
 
-def check_stuck(ip, on, up):
-    """Called on every /wake/tv poll: launches Arrencada once the TV has been up without the remote."""
+def check_stuck(ip, on, up, after=STUCK_AFTER):
+    """Called on every /wake/tv poll and by watch_tv: launches Arrencada once the TV has been up without
+    the remote for `after` seconds."""
     now = time.time()
     with kick_lock:
         if on or not up:
             kick['since'] = 0
             return
         kick['since'] = kick['since'] or now
-        if now - kick['since'] < STUCK_AFTER or now - kick['last'] < RELAUNCH_EVERY or not os.path.exists(SSAP_KEY):
+        if now - kick['since'] < after or now - kick['last'] < RELAUNCH_EVERY or not os.path.exists(SSAP_KEY):
             return
         kick['last'] = now
     threading.Thread(target=start_remote, args=(ip,), daemon=True).start()
@@ -363,11 +366,7 @@ class Handler(BaseHTTPRequestHandler):
             tv = load_tv()
             if not tv:
                 return self.reply(200, {'tv': None, 'on': False})
-            on = answers(tv['ip'], tv['port'])
-            # on but no remote: the TV answers on its own LG port (3000) while the remote server is
-            # not running (Homebrew Channel did not start at power-on)
-            up = on or answers(tv['ip'], 3000)
-            check_stuck(tv['ip'], on, up)
+            on, up = tv_state(tv)
             return self.reply(200, {'tv': 'http://%s:%d/' % (tv['ip'], tv['port']), 'on': on, 'up': up,
                                     'starting': up and not on and os.path.exists(SSAP_KEY)})
         if u.path == '/wake/register':
@@ -411,10 +410,29 @@ class Handler(BaseHTTPRequestHandler):
         sys.stderr.write('%s %s\n' % (self.log_date_time_string(), fmt % args))
 
 
+def tv_state(tv, after=STUCK_AFTER):
+    on = answers(tv['ip'], tv['port'])
+    # on but no remote: the TV answers on its own LG port (3000) while the remote server is not
+    # running (Homebrew Channel did not start at power-on)
+    up = on or answers(tv['ip'], 3000)
+    check_stuck(tv['ip'], on, up, after)
+    return on, up
+
+
+def watch_tv():
+    """Background check: a sleeping TV answers nothing, so this only acts while it is on."""
+    while True:
+        time.sleep(WATCH_EVERY)
+        tv = load_tv()
+        if tv:
+            tv_state(tv, WATCH_STUCK)
+
+
 if __name__ == '__main__':
     if sys.argv[1:] == ['pair']:
         tv = load_tv() or sys.exit('the TV has not registered yet')
         ssap(tv['ip'], [], pair=True)
         print('paired, key in %s' % SSAP_KEY)
         sys.exit()
+    threading.Thread(target=watch_tv, daemon=True).start()
     ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()
