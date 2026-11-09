@@ -8,7 +8,7 @@ for h in ngfts.lge.com aic-ngfts.lge.com \
          eu.ad.lgsmartad.com eu.info.lgsmartad.com eu.ibs.lgappstv.com \
          ad.lgappstv.com ibis.lgappstv.com \
          lgad.cjpowercast.com yumenetworks.com smartclip.net smartclip.com \
-         homeprv.lgtvcommon.com; do
+         homeprv.lgtvcommon.com alphonso.tv lgads.tv; do
     grep -q " $h\$" /etc/hosts || echo "127.0.0.1 $h" >> /etc/hosts
 done
 
