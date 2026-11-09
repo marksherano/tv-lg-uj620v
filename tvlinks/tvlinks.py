@@ -240,6 +240,7 @@ var L = (navigator.language || '').slice(0, 2), D = {
     'Enviant…': 'Enviando…', 'Encenent la TV…': 'Encendiendo la TV…', 'Error de connexió': 'Error de conexión',
     'Comprovant si la TV és encesa…': 'Comprobando si la TV está encendida…',
     "La TV és encesa, però el comandament no s'ha engegat. Obre l'app Homebrew Channel a la TV.": 'La TV está encendida, pero el mando no se ha iniciado. Abre la app Homebrew Channel en la TV.',
+    'La TV és encesa. Engegant-hi el comandament…': 'La TV está encendida. Iniciando el mando en ella…',
     "La TV s'ha apagat. Prem el botó per tornar-la a encendre": 'La TV se ha apagado. Pulsa el botón para volver a encenderla',
     "la TV encara no s'ha registrat (ha d'estar encesa un cop amb el comandament en marxa)": 'la TV todavía no se ha registrado (tiene que estar encendida una vez con el mando en marcha)' },
   en: { 'Encén la TV': 'Turn on the TV', 'TV de casa': 'Home TV', 'Prem el botó per encendre-la': 'Press the button to turn it on',
@@ -248,6 +249,7 @@ var L = (navigator.language || '').slice(0, 2), D = {
     'Enviant…': 'Sending…', 'Encenent la TV…': 'Turning on the TV…', 'Error de connexió': 'Connection error',
     'Comprovant si la TV és encesa…': 'Checking whether the TV is on…',
     "La TV és encesa, però el comandament no s'ha engegat. Obre l'app Homebrew Channel a la TV.": "The TV is on, but the remote has not started. Open the Homebrew Channel app on the TV.",
+    'La TV és encesa. Engegant-hi el comandament…': 'The TV is on. Starting the remote on it…',
     "La TV s'ha apagat. Prem el botó per tornar-la a encendre": 'The TV turned off. Press the button to turn it on again',
     "la TV encara no s'ha registrat (ha d'estar encesa un cop amb el comandament en marxa)": 'the TV has not registered yet (it must be on once with the remote server running)' }
 }[L === 'ca' ? '' : L === 'es' ? 'es' : 'en'] || {};
@@ -255,7 +257,7 @@ function T(s) { return D[s] || s; }
 document.documentElement.lang = D['TV de casa'] ? (L === 'es' ? 'es' : 'en') : 'ca';
 document.title = T('Encén la TV'); document.getElementById('h').textContent = T('TV de casa');
 var b = document.getElementById('b'), st = document.getElementById('st'), f = document.getElementById('f');
-var tv = null, tries = 0, upSince = 0, waking = false, shown = false, offs = 0;
+var tv = null, tries = 0, upSince = 0, starting = false, waking = false, shown = false, offs = 0;
 st.textContent = T('Comprovant si la TV és encesa…');
 // this server checks whether the TV answers (browsers may block requests to other LAN hosts)
 function check(cb) { fetch('wake/tv', { cache: 'no-store' }).then(function (r) { return r.json(); })
@@ -264,8 +266,14 @@ function check(cb) { fetch('wake/tv', { cache: 'no-store' }).then(function (r) {
     // after a real boot the TV answers a minute or so before the remote has started: only a TV that
     // has been answering for a while without it is "on but no remote"
     upSince = j.up && !j.on ? upSince || Date.now() : 0;
-    cb(j.on, upSince && Date.now() - upSince > 90000);
-  }, function () { cb(false, false); }); }
+    var stuck = upSince && Date.now() - upSince > 90000;
+    starting = !!j.starting && !stuck;
+    cb(j.on, stuck);
+  }, function () { starting = false; cb(false, false); }); }
+// the TV is on without the remote and tvlinks is opening Arrencada on it (after 20 s, then every 2 min):
+// the power button would do nothing, so it is hidden and the page says what is going on
+var STARTING = 'La TV és encesa. Engegant-hi el comandament…';
+function showStarting() { b.style.visibility = 'hidden'; st.textContent = T(STARTING); }
 // the TV is on but its remote server is not running: only opening Homebrew Channel starts it
 var NOREMOTE = "La TV és encesa, però el comandament no s'ha engegat. Obre l'app Homebrew Channel a la TV.";
 function openRemote() {
@@ -277,14 +285,15 @@ function openRemote() {
 function closeRemote(msg) {
   shown = false; f.src = 'about:blank';
   document.getElementById('app').className = 'hidden'; document.getElementById('wake').className = '';
-  b.disabled = false; st.textContent = T(msg);
+  b.disabled = false; b.style.visibility = ''; st.textContent = T(msg);
 }
 function poll() {
   check(function (on, stuck) {
     if (on) { st.textContent = T('Encesa! Obrint el comandament…'); return openRemote(); }
     // the TV answering means it woke up: wait for the remote (a real boot takes up to ~2 min) and,
     // if it does not come, tell why instead of blaming the Wake-on-LAN setting
-    if (stuck) { waking = false; b.disabled = false; st.textContent = T(NOREMOTE); return; }
+    if (stuck) { waking = false; b.disabled = false; b.style.visibility = ''; st.textContent = T(NOREMOTE); return; }
+    if (starting) showStarting();
     if (++tries > 30 && !upSince) { waking = false; b.disabled = false; st.textContent = T('No respon. Comprova que «Encén amb el mòbil» està activat al menú de la TV.'); return; }
     setTimeout(poll, 2000);
   });
@@ -301,7 +310,12 @@ function watch() {
   if (document.hidden || waking) return;
   check(function (on, stuck) {
     if (on) { offs = 0; return openRemote(); }
-    if (!shown) { if (!b.disabled) st.textContent = T(stuck ? NOREMOTE : 'Prem el botó per encendre-la'); return; }
+    if (!shown) {
+      if (starting) return showStarting();
+      b.style.visibility = '';
+      if (!b.disabled) st.textContent = T(stuck ? NOREMOTE : 'Prem el botó per encendre-la');
+      return;
+    }
     if (++offs >= 2) closeRemote("La TV s'ha apagat. Prem el botó per tornar-la a encendre");
   });
 }
@@ -354,7 +368,8 @@ class Handler(BaseHTTPRequestHandler):
             # not running (Homebrew Channel did not start at power-on)
             up = on or answers(tv['ip'], 3000)
             check_stuck(tv['ip'], on, up)
-            return self.reply(200, {'tv': 'http://%s:%d/' % (tv['ip'], tv['port']), 'on': on, 'up': up})
+            return self.reply(200, {'tv': 'http://%s:%d/' % (tv['ip'], tv['port']), 'on': on, 'up': up,
+                                    'starting': up and not on and os.path.exists(SSAP_KEY)})
         if u.path == '/wake/register':
             mac = (q.get('mac') or [''])[0].lower()
             port = (q.get('port') or ['8080'])[0]

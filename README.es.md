@@ -222,10 +222,13 @@ cambiar. El mando abierto por sí solo va allí cuando la TV deja de responder, 
 mando instalada va allí sola si la TV no responde. Para un atajo del iPhone basta con `GET <servicio>/wake`.
 
 A veces, después de apagarla, la TV se reinicia en el reposo del «Inicio rápido» y vuelve con la TV en
-lugar de Arrencada; entonces el Wake-on-LAN solo la despierta y el mando no arranca nunca. Por eso, cuando
+lugar de Arrencada (el primer encendido tras ese reinicio abre la app de lo que la ha encendido: el
+temporizador de encendido abre la suya, la TV); entonces despertarla o encenderla con el mando solo la
+reanuda y el mando del móvil no arranca nunca. Por eso, cuando
 la TV lleva 20 s respondiendo en el puerto propio de LG (3000) sin el mando, tvlinks abre Arrencada con la
 API de LG (SSAP, sin root) y le pasa la app que hay en pantalla para que vuelva a ella; Arrencada arranca
-Homebrew Channel o, si ya se había ejecutado, solo el mando. Solo pasa mientras la página `/tv` está abierta
+Homebrew Channel o, si ya se había ejecutado, solo el mando. Mientras tanto la página oculta el botón de
+encendido y dice que se está iniciando el mando. Solo pasa mientras la página `/tv` está abierta
 y hay que emparejarlo una vez: ejecuta `python3 ~/tvlinks/tvlinks.py pair` y acepta el aviso en la TV (la
 clave queda en `~/tvlinks/clientkey.txt`).
 
