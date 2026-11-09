@@ -222,10 +222,13 @@ sol hi va quan la TV deixa de respondre, i a Android l'app del comandament insta
 TV no respon. Per a una drecera de l'iPhone n'hi ha prou amb `GET <servei>/wake`.
 
 De vegades, després d'apagar-la, la TV es reinicia en el repòs de l'«Inici ràpid» i torna amb la TV en
-lloc d'Arrencada; llavors el Wake-on-LAN només la desperta i el comandament no arrenca mai. Per això, quan
+lloc d'Arrencada (la primera encesa després d'aquest reinici obre l'app del que l'ha encesa: el temporitzador
+d'encesa obre la seva, la TV); llavors despertar-la o encendre-la amb el comandament només la reprèn i el
+comandament del mòbil no arrenca mai. Per això, quan
 la TV fa 20 s que respon al port propi d'LG (3000) sense el comandament, tvlinks obre Arrencada amb l'API
 d'LG (SSAP, sense root) i li passa l'app que hi ha a la pantalla perquè hi torni; Arrencada engega Homebrew
-Channel o, si ja s'havia executat, només el comandament. Només passa mentre la pàgina `/tv` és oberta i cal
+Channel o, si ja s'havia executat, només el comandament. Mentrestant la pàgina amaga el botó d'encesa i diu
+que s'està engegant el comandament. Només passa mentre la pàgina `/tv` és oberta i cal
 emparellar-lo un cop: executa `python3 ~/tvlinks/tvlinks.py pair` i accepta l'avís a la TV (la clau queda a
 `~/tvlinks/clientkey.txt`).
 
